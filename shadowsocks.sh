@@ -454,16 +454,11 @@ get_char() {
 }
 
 install_prepare() {
+    install_prepare_password
+    install_prepare_port
+    install_prepare_cipher
     case $selected in
-    1 )
-        install_prepare_password
-        install_prepare_port
-        install_prepare_cipher
-        ;;
     2 )
-        install_prepare_password
-        install_prepare_port
-        install_prepare_cipher
         install_prepare_protocol
         install_prepare_obfs
         ;;
