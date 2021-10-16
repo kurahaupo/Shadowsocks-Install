@@ -119,6 +119,10 @@ disable_selinux() {
     if [ -s /etc/selinux/config ] && grep 'SELINUX=enforcing' /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
         setenforce 0
+        echo -e "${red}WARNING:${yellow} SELinux enforcement has been DISABLED.${plain}"
+        echo "To undo, edit /etc/selinux/config and change SELINUX= from disabled to enforcing"
+        echo "and then run: setenforce 1"
+        echo -e "${yellow}Please remember this in case you need to uninstall.${plain}"
     fi
 }
 
@@ -941,6 +945,10 @@ uninstall_shadowsocks() {
         fi
     fi
     ldconfig
+    echo
+    echo -e "${red}WARNING:${yellow} if SELinux was previously disabled by this script${plain}, undo manually by:"
+    echo    "         edit /etc/selinux/config and change SELINUX= from disabled to enforcing"
+    echo    "         then run: setenforce 1"
 }
 
 upgrade_shadowsocks() {
