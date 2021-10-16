@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # chkconfig: 2345 90 10
 # description: A secure socks5 proxy, designed to protect your Internet traffic.
 
