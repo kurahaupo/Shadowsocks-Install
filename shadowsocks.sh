@@ -156,14 +156,14 @@ check_sys() {
         systemPackage=apt
     fi
 
-    if [[ $checkType == sysRelease ]]; then
-        if [ "$value" == "$release" ]; then
+    if [[ $checkType = sysRelease ]]; then
+        if [ "$value" = "$release" ]; then
             return 0
         else
             return 1
         fi
-    elif [[ $checkType == packageManager ]]; then
-        if [ "$value" == "$systemPackage" ]; then
+    elif [[ $checkType = packageManager ]]; then
+        if [ "$value" = "$systemPackage" ]; then
             return 0
         else
             return 1
@@ -185,7 +185,7 @@ centosversion() {
         local code=$1
         local version="$(getversion)"
         local main_ver=${version%%.*}
-        if [ "$main_ver" == "$code" ]; then
+        if [ "$main_ver" = "$code" ]; then
             return 0
         else
             return 1
@@ -207,7 +207,7 @@ debianversion() {
         local version=$(get_opsy)
         local code=$1
         local main_ver=$(echo "$version" | sed 's/[^0-9]//g')
-        if [ "$main_ver" == "$code" ]; then
+        if [ "$main_ver" = "$code" ]; then
             return 0
         else
             return 1
@@ -266,7 +266,7 @@ install_select() {
         1 | 2)
             echo
             echo "You choose = ${software[$selected - 1]}"
-            if [ "$selected" == 1 ]; then
+            if [ "$selected" = 1 ]; then
                 echo -e "[$green""Info$plain] Shadowsocks-libev Version: $libev_ver"
             fi
             echo
@@ -353,7 +353,7 @@ install_prepare_cipher() {
     while true; do
         echo -e "Please select stream cipher for ${software[$selected - 1]}:"
 
-        if [ "$selected" == 1 ]; then
+        if [ "$selected" = 1 ]; then
             for ((i = 1; i <= ${#common_ciphers[@]}; i++)); do
                 hint="${common_ciphers[$i - 1]}"
                 echo -e "$green$i$plain) $hint"
@@ -369,7 +369,7 @@ install_prepare_cipher() {
                 continue
             fi
             shadowsockscipher=${common_ciphers[$pick - 1]}
-        elif [ "$selected" == 2 ]; then
+        elif [ "$selected" = 2 ]; then
             for ((i = 1; i <= ${#r_ciphers[@]}; i++)); do
                 hint="${r_ciphers[$i - 1]}"
                 echo -e "$green$i$plain) $hint"
@@ -455,11 +455,11 @@ get_char() {
 }
 
 install_prepare() {
-    if [ "$selected" == 1 ]; then
+    if [ "$selected" = 1 ]; then
         install_prepare_password
         install_prepare_port
         install_prepare_cipher
-    elif [ "$selected" == 2 ]; then
+    elif [ "$selected" = 2 ]; then
         install_prepare_password
         install_prepare_port
         install_prepare_cipher
@@ -471,7 +471,7 @@ install_prepare() {
 }
 
 config_shadowsocks() {
-    if [ "$selected" == 1 ]; then
+    if [ "$selected" = 1 ]; then
         local server_value='"0.0.0.0"'
         if get_ipv6; then
             server_value='["[::0]","0.0.0.0"]'
@@ -493,7 +493,7 @@ config_shadowsocks() {
 }
 EOF
 
-    elif [ "$selected" == 2 ]; then
+    elif [ "$selected" = 2 ]; then
         if [ ! -d "$(dirname "$shadowsocks_r_config")" ]; then
             mkdir -p "$(dirname "$shadowsocks_r_config")"
         fi
@@ -535,7 +535,7 @@ download() {
 download_files() {
     echo
     cd "$cur_dir" || exit
-    if [ "$selected" == 1 ]; then
+    if [ "$selected" = 1 ]; then
         get_libev_ver
         shadowsocks_libev_file=shadowsocks-libev-$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
         shadowsocks_libev_url=https://github.com/shadowsocks/shadowsocks-libev/releases/download/$libev_ver/$shadowsocks_libev_file.tar.gz
@@ -546,7 +546,7 @@ download_files() {
         elif check_sys packageManager apt; then
             download "$shadowsocks_libev_init" "$shadowsocks_libev_debian"
         fi
-    elif [ "$selected" == 2 ]; then
+    elif [ "$selected" = 2 ]; then
         download "$shadowsocks_r_file.tar.gz" "$shadowsocks_r_url"
         if check_sys packageManager yum; then
             download "$shadowsocks_r_init" "$shadowsocks_r_centos"
@@ -742,13 +742,13 @@ install_main() {
     fi
     ldconfig
 
-    if [ "$selected" == 1 ]; then
+    if [ "$selected" = 1 ]; then
         install_mbedtls
         ldconfig
         install_shadowsocks_libev
         install_completed_libev
         qr_generate_libev
-    elif [ "$selected" == 2 ]; then
+    elif [ "$selected" = 2 ]; then
         install_shadowsocks_r
         install_completed_r
         qr_generate_r
@@ -785,7 +785,7 @@ uninstall_libsodium() {
     printf "Are you sure uninstall $red$libsodium_file$plain? [y/n]\n"
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
-    if [ "$answer" == y ] || [ "$answer" == Y ]; then
+    if [ "$answer" = y ] || [ "$answer" = Y ]; then
         rm -f /usr/lib64/libsodium.so.23
         rm -f /usr/lib64/libsodium.a
         rm -f /usr/lib64/libsodium.la
@@ -807,7 +807,7 @@ uninstall_mbedtls() {
     printf "Are you sure uninstall $red$mbedtls_file$plain? [y/n]\n"
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
-    if [ "$answer" == y ] || [ "$answer" == Y ]; then
+    if [ "$answer" = y ] || [ "$answer" = Y ]; then
         rm -f /usr/lib/libmbedtls.a
         rm -f /usr/lib/libmbedtls.so
         rm -f /usr/lib/libmbedtls.so.13
@@ -827,7 +827,7 @@ uninstall_shadowsocks_libev() {
     printf "Are you sure uninstall $red${software[0]}$plain? [y/n]\n"
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
-    if [ "$answer" == y ] || [ "$answer" == Y ]; then
+    if [ "$answer" = y ] || [ "$answer" = Y ]; then
         if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_libev_init" stop
         fi
@@ -869,7 +869,7 @@ uninstall_shadowsocks_r() {
     printf "Are you sure uninstall $red${software[1]}$plain? [y/n]\n"
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
-    if [ "$answer" == y ] || [ "$answer" == Y ]; then
+    if [ "$answer" = y ] || [ "$answer" = Y ]; then
         if "$shadowsocks_r_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_r_init" stop
         fi
@@ -912,7 +912,7 @@ uninstall_shadowsocks() {
         esac
     done
 
-    if [ "$un_select" == 1 ]; then
+    if [ "$un_select" = 1 ]; then
         if [ -f "$shadowsocks_libev_init" ]; then
             uninstall_shadowsocks_libev
         else
@@ -920,7 +920,7 @@ uninstall_shadowsocks() {
             echo
             exit 1
         fi
-    elif [ "$un_select" == 2 ]; then
+    elif [ "$un_select" = 2 ]; then
         if [ -f "$shadowsocks_r_init" ]; then
             uninstall_shadowsocks_r
         else
@@ -941,7 +941,7 @@ upgrade_shadowsocks() {
     echo -e "Upgrade $green${software[0]}$plain ? [y/n]"
     read -p '(default: n) : ' answer_upgrade
     [ -z "$answer_upgrade" ] && answer_upgrade=n
-    if [ "$answer_upgrade" == Y ] || [ "$answer_upgrade" == y ]; then
+    if [ "$answer_upgrade" = Y ] || [ "$answer_upgrade" = y ]; then
         if [ -f "$shadowsocks_r_init" ]; then
             echo
             echo -e "[$red""Error$plain] Only support shadowsocks-libev !"
@@ -960,7 +960,7 @@ upgrade_shadowsocks() {
             current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
             echo
             echo -e "[$green""Info$plain] Shadowsocks-libev Version: v$current_local_version"
-            if [[ $current_libev_ver == "$current_local_version" ]]; then
+            if [[ $current_libev_ver = "$current_local_version" ]]; then
                 echo
                 echo -e "[$green""Info$plain] Already updated to latest version !"
                 echo
@@ -968,7 +968,7 @@ upgrade_shadowsocks() {
             fi
             uninstall_shadowsocks_libev
             ldconfig
-            if [ "$answer" == Y ] || [ "$answer" == y ]; then
+            if [ "$answer" = Y ] || [ "$answer" = y ]; then
                 disable_selinux
                 selected=1
                 echo
