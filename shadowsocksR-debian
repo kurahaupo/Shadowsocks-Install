@@ -19,12 +19,7 @@ NAME=ShadowsocksR
 DAEMON=/usr/local/shadowsocks/server.py
 
 check_running() {
-    PID=$(ps -ef | grep -v grep | grep -i "${DAEMON}" | awk '{print $2}')
-    if [ -n "$PID" ]; then
-        return 0
-    else
-        return 1
-    fi
+    PID=$(pgrep "${DAEMON}")
 }
 
 do_start() {
