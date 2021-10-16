@@ -974,9 +974,9 @@ upgrade_shadowsocks() {
                 echo
                 echo "You will upgrade ${software[$seleted - 1]}"
                 echo
-                shadowsockspwd=$(cat /etc/shadowsocks-libev/config.json | grep password | cut -d\" -f4)
-                shadowsocksport=$(cat /etc/shadowsocks-libev/config.json | grep server_port | cut -d , -f1 | cut -d : -f2)
-                shadowsockscipher=$(cat /etc/shadowsocks-libev/config.json | grep method | cut -d\" -f4)
+                shadowsockspwd=$(< /etc/shadowsocks-libev/config.json grep password | cut -d\" -f4)
+                shadowsocksport=$(< /etc/shadowsocks-libev/config.json grep server_port | cut -d , -f1 | cut -d : -f2)
+                shadowsockscipher=$(< /etc/shadowsocks-libev/config.json grep method | cut -d\" -f4)
                 config_shadowsocks
                 download_files
                 install_shadowsocks_libev
