@@ -283,8 +283,7 @@ error_detect_depends() {
     # assume args are: yum -y install DEPEND-NAME-HERE
     local depend=$4
     echo -e "[$green""Info$plain] Starting to install package $depend"
-    "$@" >/dev/null 2>&1
-    if [ $? -ne 0 ]; then
+    if ! "$@" >/dev/null 2>&1 ; then
         echo -e "[$red""Error$plain] Failed to install $red$depend$plain"
         exit 1
     fi
@@ -338,8 +337,7 @@ install_prepare_port() {
         echo -e "Please enter a port for ${software[$selected - 1]} [1-65535]"
         read -p "(Default port: $dport):" shadowsocksport
         [ -z "$shadowsocksport" ] && shadowsocksport=$dport
-        expr "$shadowsocksport" + 1 &>/dev/null
-        if [ $? -eq 0 ]; then
+        if expr "$shadowsocksport" + 1 &>/dev/null ; then
             if [ "$shadowsocksport" -ge 1 ] && [ "$shadowsocksport" -le 65535 ] && [ "${shadowsocksport:0:1}" != 0 ]; then
                 echo
                 echo "port = $shadowsocksport"
@@ -362,8 +360,7 @@ install_prepare_cipher() {
             done
             read -p "Which cipher you'd select(Default: ${common_ciphers[0]}):" pick
             [ -z "$pick" ] && pick=1
-            expr "$pick" + 1 &>/dev/null
-            if [ $? -ne 0 ]; then
+            if ! expr "$pick" + 1 &>/dev/null ; then
                 echo -e "[$red""Error$plain] Please enter a number"
                 continue
             fi
@@ -379,8 +376,7 @@ install_prepare_cipher() {
             done
             read -p "Which cipher you'd select(Default: ${r_ciphers[1]}):" pick
             [ -z "$pick" ] && pick=2
-            expr "$pick" + 1 &>/dev/null
-            if [ $? -ne 0 ]; then
+            if ! expr "$pick" + 1 &>/dev/null ; then
                 echo -e "[$red""Error$plain] Please enter a number"
                 continue
             fi
@@ -407,8 +403,7 @@ install_prepare_protocol() {
         done
         read -p "Which protocol you'd select(Default: ${protocols[0]}):" protocol
         [ -z "$protocol" ] && protocol=1
-        expr "$protocol" + 1 &>/dev/null
-        if [ $? -ne 0 ]; then
+        if ! expr "$protocol" + 1 &>/dev/null ; then
             echo -e "[$red""Error$plain] Please enter a number"
             continue
         fi
@@ -433,8 +428,7 @@ install_prepare_obfs() {
         done
         read -p "Which obfs you'd select(Default: ${obfs[0]}):" r_obfs
         [ -z "$r_obfs" ] && r_obfs=1
-        expr "$r_obfs" + 1 &>/dev/null
-        if [ $? -ne 0 ]; then
+        if ! expr "$r_obfs" + 1 &>/dev/null ; then
             echo -e "[$red""Error$plain] Please enter a number"
             continue
         fi
@@ -531,8 +525,7 @@ download() {
         echo "$filename [found]"
     else
         echo "$filename not found, download now..."
-        wget --no-check-certificate -c -t3 -T60 -O "$1" "$2" >/dev/null 2>&1
-        if [ $? -ne 0 ]; then
+        if ! wget --no-check-certificate -c -t3 -T60 -O "$1" "$2" >/dev/null 2>&1 ; then
             echo -e "[$red""Error$plain] Download $filename failed."
             exit 1
         fi
@@ -565,10 +558,8 @@ download_files() {
 
 config_firewall() {
     if centosversion 6; then
-        /etc/init.d/iptables status >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            iptables -L -n | grep -i "$shadowsocksport" >/dev/null 2>&1
-            if [ $? -ne 0 ]; then
+        if /etc/init.d/iptables status >/dev/null 2>&1 ; then
+            if ! iptables -L -n | grep -i "$shadowsocksport" >/dev/null 2>&1 ; then
                 iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport "$shadowsocksport" -j ACCEPT
                 iptables -I INPUT -m state --state NEW -m udp -p udp --dport "$shadowsocksport" -j ACCEPT
                 /etc/init.d/iptables save
@@ -581,8 +572,7 @@ config_firewall() {
             echo -e "[$yellow""Warning$plain] iptables looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
         fi
     elif centosversion 7; then
-        systemctl status firewalld >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
+        if systemctl status firewalld >/dev/null 2>&1 ; then
             default_zone=$(firewall-cmd --get-default-zone)
             firewall-cmd --permanent "--zone=$default_zone" "--add-port=$shadowsocksport/tcp"
             firewall-cmd --permanent "--zone=$default_zone" "--add-port=$shadowsocksport/udp"
@@ -604,8 +594,7 @@ install_libsodium() {
         download "$libsodium_file.tar.gz" "$libsodium_url"
         tar zxf "$libsodium_file.tar.gz"
         cd "$libsodium_file" || exit
-        ./configure --prefix=/usr && make && make install
-        if [ $? -ne 0 ]; then
+        if ! ./configure --prefix=/usr && make && make install ; then
             echo -e "[$red""Error$plain] $libsodium_file install failed."
             install_cleanup
             exit 1
@@ -626,8 +615,7 @@ install_mbedtls() {
         tar zxf "mbedtls-$mbedtls_file.tar.gz"
         cd "mbedtls-$mbedtls_file"
         make SHARED=1 CFLAGS=-fPIC
-        make DESTDIR=/usr install
-        if [ $? -ne 0 ]; then
+        if ! make DESTDIR=/usr install ; then
             echo -e "[$red""Error$plain] $mbedtls_file install failed."
             install_cleanup
             exit 1
@@ -646,8 +634,7 @@ install_shadowsocks_libev() {
         cd "$cur_dir" || exit
         tar zxf "$shadowsocks_libev_file.tar.gz"
         cd "$shadowsocks_libev_file" || exit
-        ./configure --disable-documentation && make && make install
-        if [ $? -eq 0 ]; then
+        if ./configure --disable-documentation && make && make install ; then
             chmod +x "$shadowsocks_libev_init"
             local service_name=$(basename "$shadowsocks_libev_init")
             if check_sys packageManager yum; then
@@ -841,8 +828,7 @@ uninstall_shadowsocks_libev() {
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
     if [ "$answer" == y ] || [ "$answer" == Y ]; then
-        "$shadowsocks_libev_init" status >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
+        if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_libev_init" stop
         fi
         local service_name=$(basename "$shadowsocks_libev_init")
@@ -884,8 +870,7 @@ uninstall_shadowsocks_r() {
     read -p '(default: n):' answer
     [ -z "$answer" ] && answer=n
     if [ "$answer" == y ] || [ "$answer" == Y ]; then
-        "$shadowsocks_r_init" status >/dev/null 2>&1
-        if [ $? -eq 0 ]; then
+        if "$shadowsocks_r_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_r_init" stop
         fi
         local service_name=$(basename "$shadowsocks_r_init")

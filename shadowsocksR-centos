@@ -19,7 +19,6 @@ elif [ -f /etc/shadowsocks.json ]; then
 fi
 NAME=ShadowsocksR
 DAEMON=/usr/local/shadowsocks/server.py
-RETVAL=0
 
 check_running() {
     PID=$(ps -ef | grep -v grep | grep -i "${DAEMON}" | awk '{print $2}')
@@ -31,44 +30,39 @@ check_running() {
 }
 
 do_start() {
-    check_running
-    if [ $? -eq 0 ]; then
+    if check_running ; then
         echo "$NAME (pid $PID) is already running..."
         exit 0
     else
-        "$DAEMON" -c "$CONF" -d start
-        RETVAL=$?
-        if [ "$RETVAL" -eq 0 ]; then
+        if "$DAEMON" -c "$CONF" -d start ; then
             echo "Starting $NAME success"
         else
             echo "Starting $NAME failed"
+            return 1
         fi
     fi
 }
 
 do_stop() {
-    check_running
-    if [ $? -eq 0 ]; then
-        "$DAEMON" -c "$CONF" -d stop
-        RETVAL=$?
-        if [ "$RETVAL" -eq 0 ]; then
+    if check_running ; then
+        if "$DAEMON" -c "$CONF" -d stop ; then
             echo "Stopping $NAME success"
         else
             echo "Stopping $NAME failed"
+            return 1
         fi
     else
         echo "$NAME is stopped"
-        RETVAL=1
+        return 1
     fi
 }
 
 do_status() {
-    check_running
-    if [ $? -eq 0 ]; then
+    if check_running ; then
         echo "$NAME (pid $PID) is running..."
     else
         echo "$NAME is stopped"
-        RETVAL=1
+        return 1
     fi
 }
 
@@ -84,8 +78,6 @@ start | stop | restart | status)
     ;;
 *)
     echo "Usage: $0 { start | stop | restart | status }"
-    RETVAL=1
+    exit 1
     ;;
 esac
-
-exit "$RETVAL"
