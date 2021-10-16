@@ -781,11 +781,19 @@ install_shadowsocks() {
     install_cleanup
 }
 
+ask_yes_no() {
+    local answer
+    printf "%s? [y/n]\n" "$1"
+    read -p "(default: n):" answer &&
+    [ "${answer^^}" = Y ]
+}
+
+ask_are_you_sure() {
+    ask_yes_no "$1; ${red}are you sure$plain"
+}
+
 uninstall_libsodium() {
-    printf "Are you sure uninstall $red$libsodium_file$plain? [y/n]\n"
-    read -p '(default: n):' answer
-    [ -z "$answer" ] && answer=n
-    if [ "$answer" = y ] || [ "$answer" = Y ]; then
+    if ask_are_you_sure "Uninstall $libsodium_file" ; then
         rm -f /usr/lib64/libsodium.so.23
         rm -f /usr/lib64/libsodium.a
         rm -f /usr/lib64/libsodium.la
@@ -804,10 +812,7 @@ uninstall_libsodium() {
 }
 
 uninstall_mbedtls() {
-    printf "Are you sure uninstall $red$mbedtls_file$plain? [y/n]\n"
-    read -p '(default: n):' answer
-    [ -z "$answer" ] && answer=n
-    if [ "$answer" = y ] || [ "$answer" = Y ]; then
+    if ask_are_you_sure "Uninstall $mbedtls_file" ; then
         rm -f /usr/lib/libmbedtls.a
         rm -f /usr/lib/libmbedtls.so
         rm -f /usr/lib/libmbedtls.so.13
@@ -824,10 +829,7 @@ uninstall_mbedtls() {
 }
 
 uninstall_shadowsocks_libev() {
-    printf "Are you sure uninstall $red${software[0]}$plain? [y/n]\n"
-    read -p '(default: n):' answer
-    [ -z "$answer" ] && answer=n
-    if [ "$answer" = y ] || [ "$answer" = Y ]; then
+    if ask_are_you_sure "Uninstall ${software[0]}" ; then
         if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_libev_init" stop
         fi
@@ -862,14 +864,12 @@ uninstall_shadowsocks_libev() {
         echo
         echo "[$green""Info$plain] ${software[0]} uninstall cancelled, nothing to do..."
         echo
+        return 1
     fi
 }
 
 uninstall_shadowsocks_r() {
-    printf "Are you sure uninstall $red${software[1]}$plain? [y/n]\n"
-    read -p '(default: n):' answer
-    [ -z "$answer" ] && answer=n
-    if [ "$answer" = y ] || [ "$answer" = Y ]; then
+    if ask_are_you_sure "Uninstall ${software[1]}" ; then
         if "$shadowsocks_r_init" status >/dev/null 2>&1 ; then
             "$shadowsocks_r_init" stop
         fi
@@ -938,10 +938,7 @@ uninstall_shadowsocks() {
 
 upgrade_shadowsocks() {
     clear
-    echo "Upgrade $green${software[0]}$plain ? [y/n]"
-    read -p '(default: n) : ' answer_upgrade
-    [ -z "$answer_upgrade" ] && answer_upgrade=n
-    if [ "$answer_upgrade" = Y ] || [ "$answer_upgrade" = y ]; then
+    if ask_yes_no "Upgrade $green${software[0]}$plain" ; then
         if [ -f "$shadowsocks_r_init" ]; then
             echo
             echo "[$red""Error$plain] Only support shadowsocks-libev !"
@@ -966,9 +963,8 @@ upgrade_shadowsocks() {
                 echo
                 exit 1
             fi
-            uninstall_shadowsocks_libev
-            ldconfig
-            if [ "$answer" = Y ] || [ "$answer" = y ]; then
+            if uninstall_shadowsocks_libev ; then
+                ldconfig
                 disable_selinux
                 selected=1
                 echo
@@ -983,6 +979,7 @@ upgrade_shadowsocks() {
                 install_completed_libev
                 qr_generate_libev
             else
+                ldconfig
                 exit 1
             fi
         else
