@@ -36,9 +36,9 @@ do_start() {
         echo "$NAME (pid $PID) is already running..."
         exit 0
     else
-        $DAEMON -c $CONF -d start
+        "$DAEMON" -c "$CONF" -d start
         RETVAL=$?
-        if [ $RETVAL -eq 0 ]; then
+        if [ "$RETVAL" -eq 0 ]; then
             echo "Starting $NAME success"
         else
             echo "Starting $NAME failed"
@@ -49,9 +49,9 @@ do_start() {
 do_stop() {
     check_running
     if [ $? -eq 0 ]; then
-        $DAEMON -c $CONF -d stop
+        "$DAEMON" -c "$CONF" -d stop
         RETVAL=$?
-        if [ $RETVAL -eq 0 ]; then
+        if [ "$RETVAL" -eq 0 ]; then
             echo "Stopping $NAME success"
         else
             echo "Stopping $NAME failed"
@@ -78,9 +78,9 @@ do_restart() {
     do_start
 }
 
-case "$1" in
+case $1 in
 start | stop | restart | status)
-    do_$1
+    "do_$1"
     ;;
 *)
     echo "Usage: $0 { start | stop | restart | status }"
@@ -88,4 +88,4 @@ start | stop | restart | status)
     ;;
 esac
 
-exit $RETVAL
+exit "$RETVAL"

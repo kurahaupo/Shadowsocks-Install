@@ -116,13 +116,13 @@ obfs=(
 )
 
 disable_selinux() {
-    if [ -s /etc/selinux/config ] && grep 'SELINUX=enforcing' /etc/selinux/config; then
+    if [ -s /etc/selinux/config ] && grep SELINUX=enforcing /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
         setenforce 0
-        echo -e "${red}WARNING:${yellow} SELinux enforcement has been DISABLED.${plain}"
-        echo "To undo, edit /etc/selinux/config and change SELINUX= from disabled to enforcing"
-        echo "and then run: setenforce 1"
-        echo -e "${yellow}Please remember this in case you need to uninstall.${plain}"
+        echo -e "${red}WARNING:$yellow SELinux enforcement has been DISABLED.$plain"
+        echo 'To undo, edit /etc/selinux/config and change SELINUX= from disabled to enforcing'
+        echo 'and then run: setenforce 1'
+        echo -e "${yellow}Please remember this in case you need to uninstall.$plain"
     fi
 }
 
@@ -156,13 +156,13 @@ check_sys() {
         systemPackage=apt
     fi
 
-    if [[ "$checkType" == sysRelease ]]; then
+    if [[ $checkType == sysRelease ]]; then
         if [ "$value" == "$release" ]; then
             return 0
         else
             return 1
         fi
-    elif [[ "$checkType" == packageManager ]]; then
+    elif [[ $checkType == packageManager ]]; then
         if [ "$value" == "$systemPackage" ]; then
             return 0
         else
@@ -280,10 +280,10 @@ install_select() {
 }
 
 error_detect_depends() {
-    local command=$1
-    local depend=$(echo "$command" | awk '{print $4}')
+    # assume args are: yum -y install DEPEND-NAME-HERE
+    local depend=$4
     echo -e "[$green""Info$plain] Starting to install package $depend"
-    $command >/dev/null 2>&1
+    "$@" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -e "[$red""Error$plain] Failed to install $red$depend$plain"
         exit 1
@@ -307,7 +307,7 @@ install_dependencies() {
             qrencode unzip c-ares-devel expat-devel gettext-devel zlib-devel
         )
         for depend in "${yum_depends[@]}"; do
-            error_detect_depends "yum -y install $depend"
+            error_detect_depends yum -y install "$depend"
         done
     elif check_sys packageManager apt; then
         apt_depends=(
@@ -318,7 +318,7 @@ install_dependencies() {
 
         apt -y update >/dev/null 2>&1
         for depend in "${apt_depends[@]}"; do
-            error_detect_depends "apt -y install $depend"
+            error_detect_depends apt -y install "$depend"
         done
     fi
 }
@@ -367,7 +367,7 @@ install_prepare_cipher() {
                 echo -e "[$red""Error$plain] Please enter a number"
                 continue
             fi
-            if [[ "$pick" -lt 1 || "$pick" -gt ${#common_ciphers[@]} ]]; then
+            if [[ $pick -lt 1 || $pick -gt ${#common_ciphers[@]} ]]; then
                 echo -e "[$red""Error$plain] Please enter a number between 1 and ${#common_ciphers[@]}"
                 continue
             fi
@@ -384,7 +384,7 @@ install_prepare_cipher() {
                 echo -e "[$red""Error$plain] Please enter a number"
                 continue
             fi
-            if [[ "$pick" -lt 1 || "$pick" -gt ${#r_ciphers[@]} ]]; then
+            if [[ $pick -lt 1 || $pick -gt ${#r_ciphers[@]} ]]; then
                 echo -e "[$red""Error$plain] Please enter a number between 1 and ${#r_ciphers[@]}"
                 continue
             fi
@@ -412,7 +412,7 @@ install_prepare_protocol() {
             echo -e "[$red""Error$plain] Please enter a number"
             continue
         fi
-        if [[ "$protocol" -lt 1 || "$protocol" -gt ${#protocols[@]} ]]; then
+        if [[ $protocol -lt 1 || $protocol -gt ${#protocols[@]} ]]; then
             echo -e "[$red""Error$plain] Please enter a number between 1 and ${#protocols[@]}"
             continue
         fi
@@ -438,7 +438,7 @@ install_prepare_obfs() {
             echo -e "[$red""Error$plain] Please enter a number"
             continue
         fi
-        if [[ "$r_obfs" -lt 1 || "$r_obfs" -gt ${#obfs[@]} ]]; then
+        if [[ $r_obfs -lt 1 || $r_obfs -gt ${#obfs[@]} ]]; then
             echo -e "[$red""Error$plain] Please enter a number between 1 and ${#obfs[@]}"
             continue
         fi
@@ -487,7 +487,7 @@ config_shadowsocks() {
             mkdir -p "$(dirname "$shadowsocks_libev_config")"
         fi
 
-        cat >$shadowsocks_libev_config <<-EOF
+        cat >"$shadowsocks_libev_config" <<-EOF
 {
     "server":$server_value,
     "server_port":$shadowsocksport,
@@ -503,7 +503,7 @@ EOF
         if [ ! -d "$(dirname "$shadowsocks_r_config")" ]; then
             mkdir -p "$(dirname "$shadowsocks_r_config")"
         fi
-        cat >$shadowsocks_r_config <<-EOF
+        cat >"$shadowsocks_r_config" <<-EOF
 {
     "server":"0.0.0.0",
     "server_ipv6":"::",
@@ -584,8 +584,8 @@ config_firewall() {
         systemctl status firewalld >/dev/null 2>&1
         if [ $? -eq 0 ]; then
             default_zone=$(firewall-cmd --get-default-zone)
-            firewall-cmd --permanent --zone=$default_zone --add-port=$shadowsocksport/tcp
-            firewall-cmd --permanent --zone=$default_zone --add-port=$shadowsocksport/udp
+            firewall-cmd --permanent "--zone=$default_zone" "--add-port=$shadowsocksport/tcp"
+            firewall-cmd --permanent "--zone=$default_zone" "--add-port=$shadowsocksport/udp"
             firewall-cmd --reload
         else
             echo -e "[$yellow""Warning$plain] firewalld looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
@@ -623,8 +623,8 @@ install_mbedtls() {
         echo -e "[$green""Info$plain] $mbedtls_file start installing."
         cd "$cur_dir" || exit
         download "mbedtls-$mbedtls_file.tar.gz" "$mbedtls_url"
-        tar zxf mbedtls-$mbedtls_file.tar.gz
-        cd mbedtls-$mbedtls_file
+        tar zxf "mbedtls-$mbedtls_file.tar.gz"
+        cd "mbedtls-$mbedtls_file"
         make SHARED=1 CFLAGS=-fPIC
         make DESTDIR=/usr install
         if [ $? -ne 0 ]; then
@@ -721,7 +721,7 @@ install_completed_r() {
 qr_generate_libev() {
     if [ "$(command -v qrencode)" ]; then
         local tmp=$(echo -n "$shadowsockscipher:$shadowsockspwd@$(get_ip):$shadowsocksport" | base64 -w0)
-        local qr_code="ss://$tmp"
+        local qr_code=ss://$tmp
         echo
         echo 'Your QR Code: (For Shadowsocks Windows, OSX, Android and iOS clients)'
         echo -e "$green $qr_code $plain"
@@ -735,7 +735,7 @@ qr_generate_r() {
     if [ "$(command -v qrencode)" ]; then
         local tmp1=$(echo -n "$shadowsockspwd" | base64 -w0 | sed 's/=//g;s/\//_/g;s/+/-/g')
         local tmp2=$(echo -n "$(get_ip):$shadowsocksport:$shadowsockprotocol:$shadowsockscipher:$shadowsockobfs:$tmp1/?obfsparam=" | base64 -w0)
-        local qr_code="ssr://$tmp2"
+        local qr_code=ssr://$tmp2
         echo
         echo 'Your QR Code: (For ShadowsocksR Windows, Android clients only)'
         echo -e " $green$qr_code$plain"
@@ -775,7 +775,7 @@ install_main() {
 install_cleanup() {
     cd "$cur_dir" || exit
     rm -rf "$libsodium_file" "$libsodium_file.tar.gz"
-    rm -rf mbedtls-$mbedtls_file mbedtls-$mbedtls_file.tar.gz
+    rm -rf "mbedtls-$mbedtls_file" "mbedtls-$mbedtls_file.tar.gz"
     rm -rf "$shadowsocks_libev_file" "$shadowsocks_libev_file.tar.gz"
     rm -rf "$shadowsocks_r_file" "$shadowsocks_r_file.tar.gz"
 }
@@ -845,7 +845,7 @@ uninstall_shadowsocks_libev() {
         if [ $? -eq 0 ]; then
             "$shadowsocks_libev_init" stop
         fi
-        local service_name=$(basename $shadowsocks_libev_init)
+        local service_name=$(basename "$shadowsocks_libev_init")
         if check_sys packageManager yum; then
             chkconfig --del "$service_name"
         elif check_sys packageManager apt; then
@@ -946,9 +946,9 @@ uninstall_shadowsocks() {
     fi
     ldconfig
     echo
-    echo -e "${red}WARNING:${yellow} if SELinux was previously disabled by this script${plain}, undo manually by:"
-    echo    "         edit /etc/selinux/config and change SELINUX= from disabled to enforcing"
-    echo    "         then run: setenforce 1"
+    echo -e "${red}WARNING:$yellow if SELinux was previously disabled by this script$plain, undo manually by:"
+    echo    '         edit /etc/selinux/config and change SELINUX= from disabled to enforcing'
+    echo    '         then run: setenforce 1'
 }
 
 upgrade_shadowsocks() {
@@ -975,7 +975,7 @@ upgrade_shadowsocks() {
             current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
             echo
             echo -e "[$green""Info$plain] Shadowsocks-libev Version: v$current_local_version"
-            if [[ "$current_libev_ver" == "$current_local_version" ]]; then
+            if [[ $current_libev_ver == "$current_local_version" ]]; then
                 echo
                 echo -e "[$green""Info$plain] Already updated to latest version !"
                 echo

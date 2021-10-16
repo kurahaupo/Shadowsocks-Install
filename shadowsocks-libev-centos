@@ -23,28 +23,28 @@ PID_DIR=/var/run
 PID_FILE=$PID_DIR/shadowsocks-libev.pid
 RET_VAL=0
 
-[ -x $DAEMON ] || exit 0
+[ -x "$DAEMON" ] || exit 0
 
-if [ ! -d $PID_DIR ]; then
-    mkdir -p $PID_DIR
+if [ ! -d "$PID_DIR" ]; then
+    mkdir -p "$PID_DIR"
     if [ $? -ne 0 ]; then
         echo "Creating PID directory $PID_DIR failed"
         exit 1
     fi
 fi
 
-if [ ! -f $CONF ]; then
+if [ ! -f "$CONF" ]; then
     echo "$NAME config file $CONF not found"
     exit 1
 fi
 
 check_running() {
-    if [ -r $PID_FILE ]; then
-        read PID <$PID_FILE
+    if [ -r "$PID_FILE" ]; then
+        read PID <"$PID_FILE"
         if [ -d "/proc/$PID" ]; then
             return 0
         else
-            rm -f $PID_FILE
+            rm -f "$PID_FILE"
             return 1
         fi
     else
@@ -70,7 +70,7 @@ do_start() {
         echo "$NAME (pid $PID) is already running..."
         return 0
     fi
-    $DAEMON -c $CONF -f $PID_FILE
+    "$DAEMON" -c "$CONF" -f "$PID_FILE"
     if check_running; then
         echo "Starting $NAME success"
     else
@@ -81,8 +81,8 @@ do_start() {
 
 do_stop() {
     if check_running; then
-        kill -9 $PID
-        rm -f $PID_FILE
+        kill -9 "$PID"
+        rm -f "$PID_FILE"
         echo "Stopping $NAME success"
     else
         echo "$NAME is stopped"
@@ -96,9 +96,9 @@ do_restart() {
     do_start
 }
 
-case "$1" in
+case $1 in
 start | stop | restart | status)
-    do_$1
+    do_"$1"
     ;;
 *)
     echo "Usage: $0 { start | stop | restart | status }"
@@ -106,4 +106,4 @@ start | stop | restart | status)
     ;;
 esac
 
-exit $RET_VAL
+exit "$RET_VAL"
