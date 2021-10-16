@@ -37,6 +37,10 @@ info() {
     printf '[%s] %s\n' "${green}Info$plain" "$*"
 }
 
+info_kv() {
+    printf '%-23s %s' "$1:" "$red$2$plain"
+}
+
 [[ $EUID != 0 ]] && die 'This script must be run as root!'
 
 cur_dir=$(pwd)
@@ -136,7 +140,7 @@ disable_selinux() {
     if [ -s /etc/selinux/config ] && grep SELINUX=enforcing /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
         setenforce 0
-        echo "${red}WARNING:$yellow SELinux enforcement has been DISABLED.$plain"
+        warn "SELinux enforcement has been ${red}DISABLED$plain."
         echo 'To undo, edit /etc/selinux/config and change SELINUX= from disabled to enforcing'
         echo 'and then run: setenforce 1'
         echo "${yellow}Please remember this in case you need to uninstall.$plain"
@@ -699,10 +703,10 @@ install_completed_libev() {
     "$shadowsocks_libev_init" start
     echo
     echo "Congratulations, $green${software[0]}$plain server install completed!"
-    echo "Your Server IP        : $red $(get_ip) $plain"
-    echo "Your Server Port      : $red $shadowsocksport $plain"
-    echo "Your Password         : $red $shadowsockspwd $plain"
-    echo "Your Encryption Method: $red $shadowsockscipher $plain"
+    info_kv 'Your Server IP'         "$(get_ip)"
+    info_kv 'Your Server Port'       "$shadowsocksport"
+    info_kv 'Your Password'          "$shadowsockspwd"
+    info_kv 'Your Encryption Method' "$shadowsockscipher"
 }
 
 install_completed_r() {
@@ -710,12 +714,12 @@ install_completed_r() {
     "$shadowsocks_r_init" start
     echo
     echo "Congratulations, $green${software[1]}$plain server install completed!"
-    echo "Your Server IP        : $red $(get_ip) $plain"
-    echo "Your Server Port      : $red $shadowsocksport $plain"
-    echo "Your Password         : $red $shadowsockspwd $plain"
-    echo "Your Protocol         : $red $shadowsockprotocol $plain"
-    echo "Your obfs             : $red $shadowsockobfs $plain"
-    echo "Your Encryption Method: $red $shadowsockscipher $plain"
+    info_kv 'Your Server IP'         "$(get_ip)"
+    info_kv 'Your Server Port'       "$shadowsocksport"
+    info_kv 'Your Password'          "$shadowsockspwd"
+    info_kv 'Your Protocol'          "$shadowsockprotocol"
+    info_kv 'Your obfs'              "$shadowsockobfs"
+    info_kv 'Your Encryption Method' "$shadowsockscipher"
 }
 
 qr_generate_libev() {
