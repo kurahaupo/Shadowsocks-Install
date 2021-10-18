@@ -240,7 +240,7 @@ debianversion() {
         return 1
     local version=$(get_opsy)
     local code=$1
-    local main_ver=$(echo "$version" | sed 's/[^0-9]//g')
+    local main_ver=${version//[!0-9]/}
     [[ $main_ver = "$code" ]]
 }
 
