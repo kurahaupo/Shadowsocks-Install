@@ -270,8 +270,14 @@ get_ipv6() {
 }
 
 get_libev_ver() {
-    libev_ver=$(wget --no-check-certificate -qO- https://api.github.com/repos/shadowsocks/shadowsocks-libev/releases/latest | grep tag_name | cut -d\" -f4)
-    [ -z "$libev_ver" ] && die "Get shadowsocks-libev latest version failed"
+    # Github API returns pretty (one-key-per-line) JSON, like:
+    #  "tag_name": "v3.3.5",
+    libev_ver=$(
+        wget --no-check-certificate -qO- https://api.github.com/repos/shadowsocks/shadowsocks-libev/releases/latest |
+        grep '"tag_name":' |
+        cut -d\" -f4
+    )
+    [[ -n $libev_ver ]] || die 'Get shadowsocks-libev latest version failed'
 }
 
 install_check() {
