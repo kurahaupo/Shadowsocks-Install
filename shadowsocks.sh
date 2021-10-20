@@ -1,6 +1,14 @@
 #!/bin/bash
-PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+
+prefix=/usr/local
+lbin_dir=$prefix/bin
+llib_dir=$prefix/lib
+share_dir=$prefix/share
+man_dir=$share_dir/man
+doc_dir=$share_dir/doc
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:$lbin_dir:$prefix/sbin:~/bin
 export PATH
+
 #
 # Thanks to: Teddysun, M3chD09
 # Distributed under the GPLv3 software license, see the accompanying
@@ -630,7 +638,7 @@ install_mbedtls() {
 }
 
 install_shadowsocks_libev() {
-    if [ -f /usr/local/bin/ss-server ] || [ -f /usr/bin/ss-server ]; then
+    if [ -f "$lbin_dir/ss-server" ] || [ -f /usr/bin/ss-server ]; then
         echo
         info "${software[0]} already installed."
     else
@@ -658,7 +666,7 @@ install_shadowsocks_libev() {
 }
 
 install_shadowsocks_r() {
-    if [ -f /usr/local/shadowsocks/server.py ]; then
+    if [ -f "$prefix/shadowsocks/server.py" ]; then
         echo
         info "${software[1]} already installed."
     else
@@ -666,8 +674,8 @@ install_shadowsocks_r() {
         info "${software[1]} start installing."
         cd "$cur_dir" || exit
         tar zxf "$shadowsocks_r_file.tar.gz"
-        mv "$shadowsocks_r_file/shadowsocks" /usr/local/
-        if [ -f /usr/local/shadowsocks/server.py ]; then
+        mv "$shadowsocks_r_file/shadowsocks" "$prefix/"
+        if [ -f "$prefix/shadowsocks/server.py" ]; then
             chmod +x "$shadowsocks_r_init"
             local service_name=$(basename "$shadowsocks_r_init")
             if check_sys packageManager yum; then
@@ -847,24 +855,24 @@ uninstall_shadowsocks_libev() {
         elif check_sys packageManager apt; then
             update-rc.d -f "$service_name" remove
         fi
-        rm -f /usr/local/bin/ss-local
-        rm -f /usr/local/bin/ss-server
-        rm -f /usr/local/bin/ss-tunnel
-        rm -f /usr/local/bin/ss-manager
-        rm -f /usr/local/bin/ss-redir
-        rm -f /usr/local/bin/ss-nat
-        rm -f /usr/local/include/shadowsocks.h
-        rm -f /usr/local/lib/libshadowsocks-libev.a
-        rm -f /usr/local/lib/libshadowsocks-libev.la
-        rm -f /usr/local/lib/pkgconfig/shadowsocks-libev.pc
-        rm -f /usr/local/share/man/man1/ss-local.1
-        rm -f /usr/local/share/man/man1/ss-server.1
-        rm -f /usr/local/share/man/man1/ss-tunnel.1
-        rm -f /usr/local/share/man/man1/ss-manager.1
-        rm -f /usr/local/share/man/man1/ss-redir.1
-        rm -f /usr/local/share/man/man1/ss-nat.1
-        rm -f /usr/local/share/man/man8/shadowsocks-libev.8
-        rm -rf /usr/local/share/doc/shadowsocks-libev
+        rm -f "$lbin_dir/ss-local"
+        rm -f "$lbin_dir/ss-server"
+        rm -f "$lbin_dir/ss-tunnel"
+        rm -f "$lbin_dir/ss-manager"
+        rm -f "$lbin_dir/ss-redir"
+        rm -f "$lbin_dir/ss-nat"
+        rm -f "$prefix/include/shadowsocks.h"
+        rm -f "$llib_dir/libshadowsocks-libev.a"
+        rm -f "$llib_dir/libshadowsocks-libev.la"
+        rm -f "$llib_dir/pkgconfig/shadowsocks-libev.pc"
+        rm -f "$man_dir/man1/ss-local.1"
+        rm -f "$man_dir/man1/ss-server.1"
+        rm -f "$man_dir/man1/ss-tunnel.1"
+        rm -f "$man_dir/man1/ss-manager.1"
+        rm -f "$man_dir/man1/ss-redir.1"
+        rm -f "$man_dir/man1/ss-nat.1"
+        rm -f "$man_dir/man8/shadowsocks-libev.8"
+        rm -rf "$doc_dir/shadowsocks-libev"
         rm -rf "$(dirname "$shadowsocks_libev_config")"
         rm -f "$shadowsocks_libev_init"
         info "${software[0]} uninstall success"
@@ -890,7 +898,7 @@ uninstall_shadowsocks_r() {
         rm -fr "$(dirname "$shadowsocks_r_config")"
         rm -f "$shadowsocks_r_init"
         rm -f /var/log/shadowsocks.log
-        rm -fr /usr/local/shadowsocks
+        rm -fr "$prefix/shadowsocks"
         info "${software[1]} uninstall success"
     else
         echo
