@@ -221,40 +221,28 @@ getversion() {
 }
 
 centosversion() {
-    if check_sys sysRelease centos; then
-        local code=$1
-        local version="$(getversion)"
-        local main_ver=${version%%.*}
-        if [ "$main_ver" = "$code" ]; then
-            return 0
-        else
-            return 1
-        fi
-    else
+    check_sys sysRelease centos ||
         return 1
-    fi
+    local code=$1
+    local version="$(getversion)"
+    local main_ver=${version%%.*}
+    [ "$main_ver" = "$code" ]
 }
 
 # debianversion
 get_opsy() {
-    [ -f /etc/redhat-release ] && awk '{print ($1,$3~/^[0-9]/?$3:$4)}' /etc/redhat-release && return
-    [ -f /etc/os-release ] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release && return
-    [ -f /etc/lsb-release ] && awk -F'[="]+' '/DESCRIPTION/{print $2}' /etc/lsb-release && return
+    [ -f /etc/redhat-release ] && awk          '{print ($1,$3~/^[0-9]/?$3:$4)}' /etc/redhat-release && return
+    [ -f /etc/os-release     ] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release     && return
+    [ -f /etc/lsb-release    ] && awk -F'[="]+' '/DESCRIPTION/{print $2}'       /etc/lsb-release    && return
 }
 
 debianversion() {
-    if check_sys sysRelease debian; then
-        local version=$(get_opsy)
-        local code=$1
-        local main_ver=$(echo "$version" | sed 's/[^0-9]//g')
-        if [ "$main_ver" = "$code" ]; then
-            return 0
-        else
-            return 1
-        fi
-    else
+    check_sys sysRelease debian ||
         return 1
-    fi
+    local version=$(get_opsy)
+    local code=$1
+    local main_ver=$(echo "$version" | sed 's/[^0-9]//g')
+    [ "$main_ver" = "$code" ]
 }
 
 get_ip() {
@@ -266,7 +254,7 @@ get_ip() {
 
 get_ipv6() {
     local ipv6=$(wget -qO- -t1 -T2 ipv6.icanhazip.com)
-    [ -z "$ipv6" ] && return 1 || return 0
+    [ -n "$ipv6" ]
 }
 
 get_libev_ver() {
@@ -281,14 +269,9 @@ get_libev_ver() {
 }
 
 install_check() {
-    if check_sys packageManager yum || check_sys packageManager apt; then
-        if centosversion 5; then
-            return 1
-        fi
-        return 0
-    else
-        return 1
-    fi
+    check_sys packageManager yum ||
+    check_sys packageManager apt &&
+    ! centosversion 5
 }
 
 install_select() {
