@@ -51,7 +51,6 @@ info_kv() {
 
 [[ $EUID != 0 ]] && die 'This script must be run as root!'
 
-cur_dir=$(pwd)
 software=(Shadowsocks-libev ShadowsocksR)
 
 libsodium_file=libsodium-1.0.18
@@ -275,9 +274,8 @@ install_check() {
 }
 
 install_select() {
-    if ! install_check; then
+    install_check ||
         die $'Your OS is not supported to run it!\nPlease change to CentOS 6+/Debian 7+/Ubuntu 12+ and try again.'
-    fi
 
     clear
     get_libev_ver
@@ -304,9 +302,7 @@ error_detect_depends() {
     # assume args are: yum -y install DEPEND-NAME-HERE
     local depend=$4
     info "Starting to install package $depend"
-    if ! "$@" >/dev/null 2>&1 ; then
-        die "Failed to install $red$depend$plain"
-    fi
+    "$@" >/dev/null 2>&1 || die "Failed to install $red$depend$plain"
 }
 
 install_dependencies() {
@@ -527,15 +523,13 @@ download() {
         echo "$filename [found]"
     else
         echo "$filename not found, download now..."
-        if ! wget --no-check-certificate -c -t3 -T60 -O "$1" "$2" >/dev/null 2>&1 ; then
+        wget --no-check-certificate -c -t3 -T60 -O "$1" "$2" >/dev/null 2>&1 ||
             die "Download $filename failed."
-        fi
     fi
 }
 
 download_files() {
     echo
-    cd "$cur_dir" || exit
     case $selected in
     1 )
         get_libev_ver
@@ -594,15 +588,17 @@ install_libsodium() {
     else
         echo
         info "$libsodium_file start installing."
-        cd "$cur_dir" || exit
         download "$libsodium_file.tar.gz" "$libsodium_url"
         tar zxf "$libsodium_file.tar.gz"
-        cd "$libsodium_file" || exit
-        if ! ./configure --prefix=/usr && make && make install ; then
-            error "$libsodium_file install failed."
+        (
+            cd "$libsodium_file" &&
+             ./configure --prefix=/usr &&
+              make &&
+               make install
+        ) || {
             install_cleanup
-            exit 1
-        fi
+            die "$libsodium_file install failed."
+        }
         info "$libsodium_file install success!"
     fi
 }
@@ -614,16 +610,16 @@ install_mbedtls() {
     else
         echo
         info "$mbedtls_file start installing."
-        cd "$cur_dir" || exit
         download "mbedtls-$mbedtls_file.tar.gz" "$mbedtls_url"
         tar zxf "mbedtls-$mbedtls_file.tar.gz"
-        cd "mbedtls-$mbedtls_file"
-        make SHARED=1 CFLAGS=-fPIC
-        if ! make DESTDIR=/usr install ; then
-            error "$mbedtls_file install failed."
+        (
+            cd "mbedtls-$mbedtls_file" &&
+            make SHARED=1 CFLAGS=-fPIC &&
+            make DESTDIR=/usr install
+        ) || {
             install_cleanup
-            exit 1
-        fi
+            die "$mbedtls_file install failed."
+        }
         info "$mbedtls_file install success!"
     fi
 }
@@ -632,55 +628,54 @@ install_shadowsocks_libev() {
     if [[ -f $lbin_dir/ss-server || -f /usr/bin/ss-server ]] ; then
         echo
         info "${software[0]} already installed."
-    else
-        echo
-        info "${software[0]} start installing."
-        cd "$cur_dir" || exit
-        tar zxf "$shadowsocks_libev_file.tar.gz"
-        cd "$shadowsocks_libev_file" || exit
-        if ./configure --disable-documentation && make && make install ; then
-            chmod +x "$shadowsocks_libev_init"
-            local service_name=$(basename "$shadowsocks_libev_init")
-            if check_sys packageManager yum; then
-                chkconfig --add "$service_name"
-                chkconfig "$service_name" on
-            elif check_sys packageManager apt; then
-                update-rc.d -f "$service_name" defaults
-            fi
-        else
-            echo
-            error "${software[0]} install failed."
-            install_cleanup
-            exit 1
-        fi
+        return
     fi
+
+    echo
+    info "${software[0]} start installing."
+    tar zxf "$shadowsocks_libev_file.tar.gz"
+    (
+        cd "$shadowsocks_libev_file" || exit
+        ./configure --disable-documentation || exit
+        make || exit
+        make install || exit
+
+        chmod +x "$shadowsocks_libev_init" || exit
+        local service_name=${shadowsocks_libev_init##*/}
+        if check_sys packageManager yum; then
+            chkconfig --add "$service_name"
+            chkconfig "$service_name" on
+        elif check_sys packageManager apt; then
+            update-rc.d -f "$service_name" defaults
+        fi
+    ) || {
+        install_cleanup
+        die "${software[0]} install failed."
+    }
 }
 
 install_shadowsocks_r() {
     if [[ -f $prefix/shadowsocks/server.py ]] ; then
         echo
         info "${software[1]} already installed."
-    else
-        echo
-        info "${software[1]} start installing."
-        cd "$cur_dir" || exit
-        tar zxf "$shadowsocks_r_file.tar.gz"
-        mv "$shadowsocks_r_file/shadowsocks" "$prefix/"
-        if [[ -f $prefix/shadowsocks/server.py ]] ; then
-            chmod +x "$shadowsocks_r_init"
-            local service_name=$(basename "$shadowsocks_r_init")
-            if check_sys packageManager yum; then
-                chkconfig --add "$service_name"
-                chkconfig "$service_name" on
-            elif check_sys packageManager apt; then
-                update-rc.d -f "$service_name" defaults
-            fi
-        else
-            echo
-            error "${software[1]} install failed."
-            install_cleanup
-            exit 1
-        fi
+        return
+    fi
+    echo
+    info "${software[1]} start installing."
+    tar zxf "$shadowsocks_r_file.tar.gz"
+    mv "$shadowsocks_r_file/shadowsocks" "$prefix/"
+    if [[ ! -f $prefix/shadowsocks/server.py ]] ; then
+        install_cleanup
+        die "${software[1]} install failed."
+    fi
+
+    chmod +x "$shadowsocks_r_init"
+    local service_name=$(basename "$shadowsocks_r_init")
+    if check_sys packageManager yum; then
+        chkconfig --add "$service_name"
+        chkconfig "$service_name" on
+    elif check_sys packageManager apt; then
+        update-rc.d -f "$service_name" defaults
     fi
 }
 
@@ -716,9 +711,9 @@ qr_generate_libev() {
         echo
         echo 'Your QR Code: (For Shadowsocks Windows, OSX, Android and iOS clients)'
         echo "$green $qr_code $plain"
-        echo -n "$qr_code" | qrencode -s8 -o "$cur_dir/shadowsocks_libev_qr.png"
+        echo -n "$qr_code" | qrencode -s8 -o shadowsocks_libev_qr.png
         echo 'Your QR Code has been saved as a PNG file path:'
-        echo " $green$cur_dir/shadowsocks_libev_qr.png$plain"
+        echo " $green$PWD/shadowsocks_libev_qr.png$plain"
     fi
 }
 
@@ -730,9 +725,9 @@ qr_generate_r() {
         echo
         echo 'Your QR Code: (For ShadowsocksR Windows, Android clients only)'
         echo " $green$qr_code$plain"
-        echo -n "$qr_code" | qrencode -s8 -o "$cur_dir/shadowsocks_r_qr.png"
+        echo -n "$qr_code" | qrencode -s8 -o shadowsocks_r_qr.png
         echo 'Your QR Code has been saved as a PNG file path:'
-        echo " $green$cur_dir/shadowsocks_r_qr.png$plain"
+        echo " $green$PWD/shadowsocks_r_qr.png$plain"
     fi
 }
 
@@ -767,7 +762,6 @@ install_main() {
 }
 
 install_cleanup() {
-    cd "$cur_dir" || exit
     rm -rf "$libsodium_file" "$libsodium_file.tar.gz"
     rm -rf "mbedtls-$mbedtls_file" "mbedtls-$mbedtls_file.tar.gz"
     rm -rf "$shadowsocks_libev_file" "$shadowsocks_libev_file.tar.gz"
@@ -836,66 +830,68 @@ uninstall_mbedtls() {
 }
 
 uninstall_shadowsocks_libev() {
-    if ask_are_you_sure "Uninstall ${software[0]}" ; then
-        if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
-            "$shadowsocks_libev_init" stop
-        fi
-        local service_name=$(basename "$shadowsocks_libev_init")
-        if check_sys packageManager yum; then
-            chkconfig --del "$service_name"
-        elif check_sys packageManager apt; then
-            update-rc.d -f "$service_name" remove
-        fi
-        rm -f "$lbin_dir/ss-local"
-        rm -f "$lbin_dir/ss-server"
-        rm -f "$lbin_dir/ss-tunnel"
-        rm -f "$lbin_dir/ss-manager"
-        rm -f "$lbin_dir/ss-redir"
-        rm -f "$lbin_dir/ss-nat"
-        rm -f "$prefix/include/shadowsocks.h"
-        rm -f "$llib_dir/libshadowsocks-libev.a"
-        rm -f "$llib_dir/libshadowsocks-libev.la"
-        rm -f "$llib_dir/pkgconfig/shadowsocks-libev.pc"
-        rm -f "$man_dir/man1/ss-local.1"
-        rm -f "$man_dir/man1/ss-server.1"
-        rm -f "$man_dir/man1/ss-tunnel.1"
-        rm -f "$man_dir/man1/ss-manager.1"
-        rm -f "$man_dir/man1/ss-redir.1"
-        rm -f "$man_dir/man1/ss-nat.1"
-        rm -f "$man_dir/man8/shadowsocks-libev.8"
-        rm -rf "$doc_dir/shadowsocks-libev"
-        rm -rf "$(dirname "$shadowsocks_libev_config")"
-        rm -f "$shadowsocks_libev_init"
-        info "${software[0]} uninstall success"
-    else
+    if ! ask_are_you_sure "Uninstall ${software[0]}" ; then
         echo
         info "${software[0]} uninstall cancelled, nothing to do..."
         echo
         return 1
     fi
+    if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
+        "$shadowsocks_libev_init" stop
+    fi
+    local service_name=$(basename "$shadowsocks_libev_init")
+    if check_sys packageManager yum; then
+        chkconfig --del "$service_name"
+    elif check_sys packageManager apt; then
+        update-rc.d -f "$service_name" remove
+    fi
+    rm -f "$lbin_dir/ss-local"
+    rm -f "$lbin_dir/ss-server"
+    rm -f "$lbin_dir/ss-tunnel"
+    rm -f "$lbin_dir/ss-manager"
+    rm -f "$lbin_dir/ss-redir"
+    rm -f "$lbin_dir/ss-nat"
+    rm -f "$prefix/include/shadowsocks.h"
+    rm -f "$llib_dir/libshadowsocks-libev.a"
+    rm -f "$llib_dir/libshadowsocks-libev.la"
+    rm -f "$llib_dir/pkgconfig/shadowsocks-libev.pc"
+    rm -f "$man_dir/man1/ss-local.1"
+    rm -f "$man_dir/man1/ss-server.1"
+    rm -f "$man_dir/man1/ss-tunnel.1"
+    rm -f "$man_dir/man1/ss-manager.1"
+    rm -f "$man_dir/man1/ss-redir.1"
+    rm -f "$man_dir/man1/ss-nat.1"
+    rm -f "$man_dir/man8/shadowsocks-libev.8"
+    rm -rf "$doc_dir/shadowsocks-libev"
+    rm -rf "$(dirname "$shadowsocks_libev_config")"
+    rm -f "$shadowsocks_libev_init"
+    info "${software[0]} uninstall success"
 }
 
 uninstall_shadowsocks_r() {
-    if ask_are_you_sure "Uninstall ${software[1]}" ; then
-        if "$shadowsocks_r_init" status >/dev/null 2>&1 ; then
-            "$shadowsocks_r_init" stop
-        fi
-        local service_name=$(basename "$shadowsocks_r_init")
-        if check_sys packageManager yum; then
-            chkconfig --del "$service_name"
-        elif check_sys packageManager apt; then
-            update-rc.d -f "$service_name" remove
-        fi
-        rm -fr "$(dirname "$shadowsocks_r_config")"
-        rm -f "$shadowsocks_r_init"
-        rm -f /var/log/shadowsocks.log
-        rm -fr "$prefix/shadowsocks"
-        info "${software[1]} uninstall success"
-    else
+    if ! ask_are_you_sure "Uninstall ${software[1]}" ; then
         echo
         info "${software[1]} uninstall cancelled, nothing to do..."
         echo
+        return
     fi
+
+    if "$shadowsocks_r_init" status >/dev/null 2>&1 ; then
+        "$shadowsocks_r_init" stop
+    fi
+
+    local service_name=$(basename "$shadowsocks_r_init")
+    if check_sys packageManager yum; then
+        chkconfig --del "$service_name"
+    elif check_sys packageManager apt; then
+        update-rc.d -f "$service_name" remove
+    fi
+
+    rm -fr "$(dirname "$shadowsocks_r_config")"
+    rm -f "$shadowsocks_r_init"
+    rm -f /var/log/shadowsocks.log
+    rm -fr "$prefix/shadowsocks"
+    info "${software[1]} uninstall success"
 }
 
 uninstall_shadowsocks() {
@@ -916,18 +912,14 @@ uninstall_shadowsocks() {
 
     case $un_select in
     1 )
-        if [[ -f $shadowsocks_libev_init ]] ; then
-            uninstall_shadowsocks_libev
-        else
+        [[ -f $shadowsocks_libev_init ]] ||
             die "${software[un_select-1]} not installed, please check it and try again."
-        fi
+        uninstall_shadowsocks_libev
         ;;
     2 )
-        if [[ -f $shadowsocks_r_init ]] ; then
-            uninstall_shadowsocks_r
-        else
+        [[ -f $shadowsocks_r_init ]] ||
             die "${software[un_select-1]} not installed, please check it and try again."
-        fi
+        uninstall_shadowsocks_r
         ;;
     esac
     ldconfig
@@ -939,60 +931,52 @@ uninstall_shadowsocks() {
 
 upgrade_shadowsocks() {
     clear
-    if ask_yes_no "Upgrade $green${software[0]}$plain" ; then
-        if [[ -f $shadowsocks_r_init ]] ; then
-            echo
-            die 'Only support shadowsocks-libev !'
-        elif [[ -f $shadowsocks_libev_init ]] ; then
-            if ! has_command ss-server ; then
-                echo
-                die 'Shadowsocks-libev not installed...'
-            else
-                current_local_version=$(ss-server --help | grep shadowsocks | cut -d' ' -f2)
-            fi
-            get_libev_ver
-            current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
-            echo
-            info "Shadowsocks-libev Version: v$current_local_version"
-            if [[ $current_libev_ver = "$current_local_version" ]] ; then
-                echo
-                info 'Already updated to latest version !'
-                echo
-                exit 1
-            fi
-            if uninstall_shadowsocks_libev ; then
-                ldconfig
-                disable_selinux
-                selected=1
-                echo
-                echo "You will upgrade ${software[selected-1]}"
-                echo
-                shadowsockspwd=$(< /etc/shadowsocks-libev/config.json grep password | cut -d\" -f4)
-                shadowsocksport=$(< /etc/shadowsocks-libev/config.json grep server_port | cut -d , -f1 | cut -d : -f2)
-                shadowsockscipher=$(< /etc/shadowsocks-libev/config.json grep method | cut -d\" -f4)
-                config_shadowsocks
-                download_files
-                install_shadowsocks_libev
-                install_completed_libev
-                qr_generate_libev
-            else
-                ldconfig
-                exit 1
-            fi
-        else
-            echo
-            die "Shadowsocks-libev server doesn't exist !"
-        fi
-    else
+    if ! ask_yes_no "Upgrade $green${software[0]}$plain" ; then
         echo
         info "${software[0]} upgrade cancelled, nothing to do..."
         echo
+        return
     fi
+
+    [[ -f $shadowsocks_r_init ]] || die 'Only support shadowsocks-libev !'
+    [[ -f $shadowsocks_libev_init ]] || die "Shadowsocks-libev server doesn't exist !"
+
+    has_command ss-server || die 'Shadowsocks-libev not installed...'
+    current_local_version=$(ss-server --help | grep shadowsocks | cut -d' ' -f2)
+    get_libev_ver
+    current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
+    echo
+    info "Shadowsocks-libev Version: v$current_local_version"
+
+    if [[ $current_libev_ver = "$current_local_version" ]] ; then
+        echo
+        info 'Already updated to latest version !'
+        echo
+        exit 1
+    fi
+
+    uninstall_shadowsocks_libev ||
+        exit
+
+    ldconfig
+    disable_selinux
+    selected=1
+    echo
+    echo "You will upgrade ${software[selected-1]}"
+    echo
+    shadowsockspwd=$(< /etc/shadowsocks-libev/config.json grep password | cut -d\" -f4)
+    shadowsocksport=$(< /etc/shadowsocks-libev/config.json grep server_port | cut -d , -f1 | cut -d : -f2)
+    shadowsockscipher=$(< /etc/shadowsocks-libev/config.json grep method | cut -d\" -f4)
+    config_shadowsocks
+    download_files
+    install_shadowsocks_libev
+    install_completed_libev
+    qr_generate_libev
 }
 
 # Initialization step
-action=$1
-[[ -z "$1" ]] && action=install
+action=${1:-install}
+
 case $action in
 install | uninstall | upgrade)
     "$action"_shadowsocks
