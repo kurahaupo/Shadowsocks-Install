@@ -165,7 +165,7 @@ has_command() {
 }
 
 disable_selinux() {
-    if [ -s /etc/selinux/config ] && grep SELINUX=enforcing /etc/selinux/config; then
+    if [[ -s /etc/selinux/config ]] && grep SELINUX=enforcing /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
         setenforce 0
         warn "SELinux enforcement has been ${red}DISABLED$plain."
@@ -182,7 +182,7 @@ check_sys() {
     local release=''
     local systemPackage=''
 
-    if [[ -f /etc/redhat-release ]]; then
+    if [[ -f /etc/redhat-release ]] ; then
         release=centos
         systemPackage=yum
     elif grep -Eqi 'centos|red hat|redhat' /etc/issue; then
@@ -213,7 +213,7 @@ check_sys() {
 
 # centosversion
 getversion() {
-    if [[ -s /etc/redhat-release ]]; then
+    if [[ -s /etc/redhat-release ]] ; then
         grep -oE '[0-9.]+' /etc/redhat-release
     else
         grep -oE '[0-9.]+' /etc/issue
@@ -226,14 +226,14 @@ centosversion() {
     local code=$1
     local version="$(getversion)"
     local main_ver=${version%%.*}
-    [ "$main_ver" = "$code" ]
+    [[ $main_ver = "$code" ]]
 }
 
 # debianversion
 get_opsy() {
-    [ -f /etc/redhat-release ] && awk          '{print ($1,$3~/^[0-9]/?$3:$4)}' /etc/redhat-release && return
-    [ -f /etc/os-release     ] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release     && return
-    [ -f /etc/lsb-release    ] && awk -F'[="]+' '/DESCRIPTION/{print $2}'       /etc/lsb-release    && return
+    [[ -f /etc/redhat-release ]] && awk          '{print ($1,$3~/^[0-9]/?$3:$4)}' /etc/redhat-release && return
+    [[ -f /etc/os-release     ]] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release     && return
+    [[ -f /etc/lsb-release    ]] && awk -F'[="]+' '/DESCRIPTION/{print $2}'       /etc/lsb-release    && return
 }
 
 debianversion() {
@@ -242,19 +242,19 @@ debianversion() {
     local version=$(get_opsy)
     local code=$1
     local main_ver=$(echo "$version" | sed 's/[^0-9]//g')
-    [ "$main_ver" = "$code" ]
+    [[ $main_ver = "$code" ]]
 }
 
 get_ip() {
     local IP=$(ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1)
-    [ -z "$IP" ] && IP=$(wget -qO- -t1 -T2 ipv4.icanhazip.com)
-    [ -z "$IP" ] && IP=$(wget -qO- -t1 -T2 ipinfo.io/ip)
+    [[ -z $IP ]] && IP=$(wget -qO- -t1 -T2 ipv4.icanhazip.com)
+    [[ -z $IP ]] && IP=$(wget -qO- -t1 -T2 ipinfo.io/ip)
     echo "$IP"
 }
 
 get_ipv6() {
     local ipv6=$(wget -qO- -t1 -T2 ipv6.icanhazip.com)
-    [ -n "$ipv6" ]
+    [[ -n $ipv6 ]]
 }
 
 get_libev_ver() {
@@ -292,10 +292,9 @@ install_select() {
     do
         error "Please only enter a number [1-${#software[@]}]"
     done
-    sw=
     echo
     echo "You choose = ${software[selected-1]}"
-    if [ "$selected" = 1 ]; then
+    if [[ $selected = 1 ]] ; then
         info "Shadowsocks-libev Version: $libev_ver"
     fi
     echo
@@ -313,12 +312,17 @@ error_detect_depends() {
 install_dependencies() {
     if check_sys packageManager yum; then
         info 'Checking the EPEL repository...'
-        if [ ! -f /etc/yum.repos.d/epel.repo ]; then
+        if [[ ! -f /etc/yum.repos.d/epel.repo ]] ; then
             yum install -y epel-release >/dev/null 2>&1
         fi
-        [ -f /etc/yum.repos.d/epel.repo ] || die 'Install EPEL repository failed, please check it.'
+        [[ -f /etc/yum.repos.d/epel.repo ]] || die 'Install EPEL repository failed, please check it.'
         has_command yum-config-manager || yum install -y yum-utils >/dev/null 2>&1
-        [ x"$(yum-config-manager epel | grep -w enabled | awk '{print $3}')" != xTrue ] && yum-config-manager --enable epel >/dev/null 2>&1
+
+        [[ x"$(yum-config-manager epel | grep -w enabled | awk '{print $3}')" != xTrue ]] &&
+        yum-config-manager --enable epel >/dev/null 2>&1
+
+        yum-config-manager epel | grep -qx 'enabled = True' ||
+        yum-config-manager --enable epel >/dev/null 2>&1
         info 'Checking the EPEL repository complete...'
 
         yum_depends=(
@@ -346,7 +350,7 @@ install_dependencies() {
 install_prepare_password() {
     echo "Please enter password for ${software[selected-1]}"
     read -p '(Default password: shadowsocks):' shadowsockspwd
-    [ -z "$shadowsockspwd" ] && shadowsockspwd=shadowsocks
+    [[ -z $shadowsockspwd ]] && shadowsockspwd=shadowsocks
     echo
     echo "password = $shadowsockspwd"
     echo
@@ -476,7 +480,7 @@ config_shadowsocks() {
             server_value='["[::0]","0.0.0.0"]'
         fi
 
-        if [ ! -d "$(dirname "$shadowsocks_libev_config")" ]; then
+        if [[ ! -d $(dirname "$shadowsocks_libev_config") ]] ; then
             mkdir -p "$(dirname "$shadowsocks_libev_config")"
         fi
 
@@ -493,7 +497,7 @@ config_shadowsocks() {
 EOF
 
     2 )
-        if [ ! -d "$(dirname "$shadowsocks_r_config")" ]; then
+        if [[ ! -d $(dirname "$shadowsocks_r_config") ]] ; then
             mkdir -p "$(dirname "$shadowsocks_r_config")"
         fi
         cat >"$shadowsocks_r_config" <<-EOF ;;
@@ -521,7 +525,7 @@ EOF
 
 download() {
     local filename=$(basename "$1")
-    if [ -f "$1" ]; then
+    if [[ -f $1 ]] ; then
         echo "$filename [found]"
     else
         echo "$filename not found, download now..."
@@ -586,7 +590,7 @@ config_firewall() {
 }
 
 install_libsodium() {
-    if [ -f /usr/lib/libsodium.a ] || [ -f /usr/lib64/libsodium.a ]; then
+    if [[ -f /usr/lib/libsodium.a || -f /usr/lib64/libsodium.a ]] ; then
         echo
         info "$libsodium_file already installed."
     else
@@ -606,7 +610,7 @@ install_libsodium() {
 }
 
 install_mbedtls() {
-    if [ -f /usr/lib/libmbedtls.a ] || [ -f /usr/lib64/libmbedtls.a ]; then
+    if [[ -f /usr/lib/libmbedtls.a || -f /usr/lib64/libmbedtls.a ]] ; then
         echo
         info "$mbedtls_file already installed."
     else
@@ -627,7 +631,7 @@ install_mbedtls() {
 }
 
 install_shadowsocks_libev() {
-    if [ -f "$lbin_dir/ss-server" ] || [ -f /usr/bin/ss-server ]; then
+    if [[ -f $lbin_dir/ss-server || -f /usr/bin/ss-server ]] ; then
         echo
         info "${software[0]} already installed."
     else
@@ -655,7 +659,7 @@ install_shadowsocks_libev() {
 }
 
 install_shadowsocks_r() {
-    if [ -f "$prefix/shadowsocks/server.py" ]; then
+    if [[ -f $prefix/shadowsocks/server.py ]] ; then
         echo
         info "${software[1]} already installed."
     else
@@ -664,7 +668,7 @@ install_shadowsocks_r() {
         cd "$cur_dir" || exit
         tar zxf "$shadowsocks_r_file.tar.gz"
         mv "$shadowsocks_r_file/shadowsocks" "$prefix/"
-        if [ -f "$prefix/shadowsocks/server.py" ]; then
+        if [[ -f $prefix/shadowsocks/server.py ]] ; then
             chmod +x "$shadowsocks_r_init"
             local service_name=$(basename "$shadowsocks_r_init")
             if check_sys packageManager yum; then
@@ -790,7 +794,7 @@ ask_yes_no() {
     local answer
     printf "%s? [y/n]\n" "$1"
     read -p "(default: n):" answer &&
-    [ "${answer^^}" = Y ]
+    [[ ${answer^^} = Y ]]
 }
 
 ask_are_you_sure() {
@@ -914,14 +918,14 @@ uninstall_shadowsocks() {
 
     case $un_select in
     1 )
-        if [ -f "$shadowsocks_libev_init" ]; then
+        if [[ -f $shadowsocks_libev_init ]] ; then
             uninstall_shadowsocks_libev
         else
             die "${software[un_select-1]} not installed, please check it and try again."
         fi
         ;;
     2 )
-        if [ -f "$shadowsocks_r_init" ]; then
+        if [[ -f $shadowsocks_r_init ]] ; then
             uninstall_shadowsocks_r
         else
             die "${software[un_select-1]} not installed, please check it and try again."
@@ -938,10 +942,10 @@ uninstall_shadowsocks() {
 upgrade_shadowsocks() {
     clear
     if ask_yes_no "Upgrade $green${software[0]}$plain" ; then
-        if [ -f "$shadowsocks_r_init" ]; then
+        if [[ -f $shadowsocks_r_init ]] ; then
             echo
             die 'Only support shadowsocks-libev !'
-        elif [ -f "$shadowsocks_libev_init" ]; then
+        elif [[ -f $shadowsocks_libev_init ]] ; then
             if ! has_command ss-server ; then
                 echo
                 die 'Shadowsocks-libev not installed...'
@@ -952,7 +956,7 @@ upgrade_shadowsocks() {
             current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
             echo
             info "Shadowsocks-libev Version: v$current_local_version"
-            if [[ $current_libev_ver = "$current_local_version" ]]; then
+            if [[ $current_libev_ver = "$current_local_version" ]] ; then
                 echo
                 info 'Already updated to latest version !'
                 echo
@@ -990,7 +994,7 @@ upgrade_shadowsocks() {
 
 # Initialization step
 action=$1
-[ -z "$1" ] && action=install
+[[ -z "$1" ]] && action=install
 case $action in
 install | uninstall | upgrade)
     "$action"_shadowsocks
