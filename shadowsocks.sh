@@ -152,6 +152,10 @@ is_valid_number() {
     esac
 }
 
+has_command() {
+    command -v "$@" >/dev/null 2>&1
+}
+
 disable_selinux() {
     if [ -s /etc/selinux/config ] && grep SELINUX=enforcing /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
@@ -315,8 +319,8 @@ install_dependencies() {
         if [ ! -f /etc/yum.repos.d/epel.repo ]; then
             yum install -y epel-release >/dev/null 2>&1
         fi
-        [ ! -f /etc/yum.repos.d/epel.repo ] && die 'Install EPEL repository failed, please check it.'
-        [ ! "$(command -v yum-config-manager)" ] && yum install -y yum-utils >/dev/null 2>&1
+        [ -f /etc/yum.repos.d/epel.repo ] || die 'Install EPEL repository failed, please check it.'
+        has_command yum-config-manager || yum install -y yum-utils >/dev/null 2>&1
         [ x"$(yum-config-manager epel | grep -w enabled | awk '{print $3}')" != xTrue ] && yum-config-manager --enable epel >/dev/null 2>&1
         info 'Checking the EPEL repository complete...'
 
@@ -707,7 +711,7 @@ install_completed_r() {
 }
 
 qr_generate_libev() {
-    if [ "$(command -v qrencode)" ]; then
+    if has_command qrencode ; then
         local tmp=$(echo -n "$shadowsockscipher:$shadowsockspwd@$(get_ip):$shadowsocksport" | base64 -w0)
         local qr_code=ss://$tmp
         echo
@@ -720,7 +724,7 @@ qr_generate_libev() {
 }
 
 qr_generate_r() {
-    if [ "$(command -v qrencode)" ]; then
+    if has_command qrencode ; then
         local tmp1=$(echo -n "$shadowsockspwd" | base64 -w0 | sed 's/=//g;s/\//_/g;s/+/-/g')
         local tmp2=$(echo -n "$(get_ip):$shadowsocksport:$shadowsockprotocol:$shadowsockscipher:$shadowsockobfs:$tmp1/?obfsparam=" | base64 -w0)
         local qr_code=ssr://$tmp2
@@ -941,7 +945,7 @@ upgrade_shadowsocks() {
             echo
             die 'Only support shadowsocks-libev !'
         elif [ -f "$shadowsocks_libev_init" ]; then
-            if [ ! "$(command -v ss-server)" ]; then
+            if ! has_command ss-server ; then
                 echo
                 die 'Shadowsocks-libev not installed...'
             else
