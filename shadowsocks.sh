@@ -61,6 +61,7 @@ mbedtls_url=https://github.com/ARMmbed/mbedtls/archive/$mbedtls_file.tar.gz
 
 shadowsocks_libev_init=/etc/init.d/shadowsocks-libev
 shadowsocks_libev_config=/etc/shadowsocks-libev/config.json
+shadowsocks_libev_config_dir=${shadowsocks_libev_config%/*}
 shadowsocks_libev_centos=https://raw.githubusercontent.com/Yuk1n0/Shadowsocks-Install/master/shadowsocks-libev-centos
 shadowsocks_libev_debian=https://raw.githubusercontent.com/Yuk1n0/Shadowsocks-Install/master/shadowsocks-libev-debian
 
@@ -68,6 +69,7 @@ shadowsocks_r_file=shadowsocksr-3.2.2
 shadowsocks_r_url=https://github.com/shadowsocksrr/shadowsocksr/archive/3.2.2.tar.gz
 shadowsocks_r_init=/etc/init.d/shadowsocks-r
 shadowsocks_r_config=/etc/shadowsocks-r/config.json
+shadowsocks_r_config_dir=${shadowsocks_r_config%/*}
 shadowsocks_r_centos=https://raw.githubusercontent.com/Yuk1n0/Shadowsocks-Install/master/shadowsocksR-centos
 shadowsocks_r_debian=https://raw.githubusercontent.com/Yuk1n0/Shadowsocks-Install/master/shadowsocksR-debian
 
@@ -474,8 +476,8 @@ config_shadowsocks() {
             server_value='["[::0]","0.0.0.0"]'
         fi
 
-        if [[ ! -d $(dirname "$shadowsocks_libev_config") ]] ; then
-            mkdir -p "$(dirname "$shadowsocks_libev_config")"
+        if [[ ! -d $shadowsocks_libev_config_dir ]] ; then
+            mkdir -p "$shadowsocks_libev_config_dir"
         fi
 
         cat >"$shadowsocks_libev_config" <<-EOF ;;
@@ -491,8 +493,8 @@ config_shadowsocks() {
 EOF
 
     2 )
-        if [[ ! -d $(dirname "$shadowsocks_r_config") ]] ; then
-            mkdir -p "$(dirname "$shadowsocks_r_config")"
+        if [[ ! -d $shadowsocks_r_config_dir ]] ; then
+            mkdir -p "$shadowsocks_r_config_dir"
         fi
         cat >"$shadowsocks_r_config" <<-EOF ;;
 {
@@ -518,7 +520,7 @@ EOF
 }
 
 download() {
-    local filename=$(basename "$1")
+    local filename=${1##*/}
     if [[ -f $1 ]] ; then
         echo "$filename [found]"
     else
@@ -670,7 +672,7 @@ install_shadowsocks_r() {
     fi
 
     chmod +x "$shadowsocks_r_init"
-    local service_name=$(basename "$shadowsocks_r_init")
+    local service_name=${shadowsocks_r_init##*/}
     if check_sys packageManager yum; then
         chkconfig --add "$service_name"
         chkconfig "$service_name" on
@@ -836,15 +838,18 @@ uninstall_shadowsocks_libev() {
         echo
         return 1
     fi
+
     if "$shadowsocks_libev_init" status >/dev/null 2>&1 ; then
         "$shadowsocks_libev_init" stop
     fi
-    local service_name=$(basename "$shadowsocks_libev_init")
+
+    local service_name=${shadowsocks_libev_init##*/}
     if check_sys packageManager yum; then
         chkconfig --del "$service_name"
     elif check_sys packageManager apt; then
         update-rc.d -f "$service_name" remove
     fi
+
     rm -f "$lbin_dir/ss-local"
     rm -f "$lbin_dir/ss-server"
     rm -f "$lbin_dir/ss-tunnel"
@@ -863,7 +868,7 @@ uninstall_shadowsocks_libev() {
     rm -f "$man_dir/man1/ss-nat.1"
     rm -f "$man_dir/man8/shadowsocks-libev.8"
     rm -rf "$doc_dir/shadowsocks-libev"
-    rm -rf "$(dirname "$shadowsocks_libev_config")"
+    rm -rf "$shadowsocks_libev_config_dir"
     rm -f "$shadowsocks_libev_init"
     info "${software[0]} uninstall success"
 }
@@ -880,14 +885,14 @@ uninstall_shadowsocks_r() {
         "$shadowsocks_r_init" stop
     fi
 
-    local service_name=$(basename "$shadowsocks_r_init")
+    local service_name=${shadowsocks_r_init##*/}
     if check_sys packageManager yum; then
         chkconfig --del "$service_name"
     elif check_sys packageManager apt; then
         update-rc.d -f "$service_name" remove
     fi
 
-    rm -fr "$(dirname "$shadowsocks_r_config")"
+    rm -fr "$shadowsocks_r_config_dir"
     rm -f "$shadowsocks_r_init"
     rm -f /var/log/shadowsocks.log
     rm -fr "$prefix/shadowsocks"
@@ -983,6 +988,6 @@ install | uninstall | upgrade)
     ;;
 *)
     echo "Arguments error! [$action]"
-    echo "Usage: $(basename "$0") [install|uninstall|upgrade]"
+    echo "Usage: ${0##*/} [install|uninstall|upgrade]"
     ;;
 esac
