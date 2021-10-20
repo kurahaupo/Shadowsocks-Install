@@ -287,13 +287,13 @@ install_select() {
         done
         read -p "Please enter a number (Default ${software[0]}):" selected
         ! is_valid_number selected 1 ${#software[@]} 1 ||
-        [[ -z ${software[$selected - 1]} ]] 
+        [[ -z ${software[selected-1]} ]]
     do
         error "Please only enter a number [1-${#software[@]}]"
     done
     sw=
     echo
-    echo "You choose = ${software[$selected - 1]}"
+    echo "You choose = ${software[selected-1]}"
     if [ "$selected" = 1 ]; then
         info "Shadowsocks-libev Version: $libev_ver"
     fi
@@ -343,7 +343,7 @@ install_dependencies() {
 }
 
 install_prepare_password() {
-    echo "Please enter password for ${software[$selected - 1]}"
+    echo "Please enter password for ${software[selected-1]}"
     read -p '(Default password: shadowsocks):' shadowsockspwd
     [ -z "$shadowsockspwd" ] && shadowsockspwd=shadowsocks
     echo
@@ -352,7 +352,7 @@ install_prepare_password() {
 }
 
 install_prepare_port() {
-    local sw=${software[$selected - 1]}
+    local sw=${software[selected-1]}
     while
         dport=$(( (RANDOM<<15^RANDOM) % 10000 + 9000 ))
         echo "Please enter a port for $sw [1-65535]"
@@ -367,7 +367,7 @@ install_prepare_port() {
 }
 
 install_prepare_cipher() {
-    local sw=${software[$selected - 1]}
+    local sw=${software[selected-1]}
     local pick
     case $selected in
     1)
@@ -382,7 +382,7 @@ install_prepare_cipher() {
         do
             error "Please enter a number between 1 and ${#common_ciphers[@]}"
         done
-        shadowsockscipher=${common_ciphers[pick - 1]}
+        shadowsockscipher=${common_ciphers[pick-1]}
         ;;
     2)
         while
@@ -404,7 +404,7 @@ install_prepare_cipher() {
 }
 
 install_prepare_protocol() {
-    local sw=${software[$selected - 1]}
+    local sw=${software[selected-1]}
     local pick
     while
         echo "Please select protocol for $sw:"
@@ -417,14 +417,14 @@ install_prepare_protocol() {
     do
         error "Please enter a number between 1 and ${#protocols[@]}"
     done
-    shadowsockprotocol=${protocols[pick - 1]}
+    shadowsockprotocol=${protocols[pick-1]}
     echo
     echo "protocol = $shadowsockprotocol"
     echo
 }
 
 install_prepare_obfs() {
-    local sw=${software[$selected - 1]}
+    local sw=${software[selected-1]}
     local pick
     while
         echo "Please select obfs for $sw:"
@@ -437,7 +437,7 @@ install_prepare_obfs() {
     do
         error "Please enter a number between 1 and ${#obfs[@]}"
     done
-    shadowsockobfs=${obfs[pick - 1]}
+    shadowsockobfs=${obfs[pick-1]}
     echo
     echo "obfs = $shadowsockobfs"
     echo
@@ -913,7 +913,7 @@ uninstall_shadowsocks() {
         error "Please only enter a number [1-${#software[@]}]"
     done
     echo
-    echo "You choose = ${software[$un_select - 1]}"
+    echo "You choose = ${software[un_select-1]}"
     echo
 
     case $un_select in
@@ -921,14 +921,14 @@ uninstall_shadowsocks() {
         if [ -f "$shadowsocks_libev_init" ]; then
             uninstall_shadowsocks_libev
         else
-            die "${software[$un_select - 1]} not installed, please check it and try again."
+            die "${software[un_select-1]} not installed, please check it and try again."
         fi
         ;;
     2 )
         if [ -f "$shadowsocks_r_init" ]; then
             uninstall_shadowsocks_r
         else
-            die "${software[$un_select - 1]} not installed, please check it and try again."
+            die "${software[un_select-1]} not installed, please check it and try again."
         fi
         ;;
     esac
@@ -967,7 +967,7 @@ upgrade_shadowsocks() {
                 disable_selinux
                 selected=1
                 echo
-                echo "You will upgrade ${software[$seleted - 1]}"
+                echo "You will upgrade ${software[seleted-1]}"
                 echo
                 shadowsockspwd=$(< /etc/shadowsocks-libev/config.json grep password | cut -d\" -f4)
                 shadowsocksport=$(< /etc/shadowsocks-libev/config.json grep server_port | cut -d , -f1 | cut -d : -f2)
