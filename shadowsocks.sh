@@ -193,19 +193,10 @@ check_sys() {
         systemPackage=apt
     fi
 
-    if [[ $checkType = sysRelease ]]; then
-        if [ "$value" = "$release" ]; then
-            return 0
-        else
-            return 1
-        fi
-    elif [[ $checkType = packageManager ]]; then
-        if [ "$value" = "$systemPackage" ]; then
-            return 0
-        else
-            return 1
-        fi
-    fi
+    case $checkType in
+    sysRelease )     [[ $value = "$release" ]] ;;
+    packageManager ) [[ $value = "$systemPackage" ]] ;;
+    esac
 }
 
 # centosversion
@@ -405,7 +396,7 @@ install_prepare_cipher() {
         do
             error "Please enter a number between 1 and ${#r_ciphers[@]}"
         done
-        shadowsockscipher=${r_ciphers[pick - 1]}
+        shadowsockscipher=${r_ciphers[pick-1]}
     esac
     echo
     echo "cipher = $shadowsockscipher"
@@ -463,23 +454,27 @@ get_char() {
 }
 
 install_prepare() {
-    if [ "$selected" = 1 ]; then
+    case $selected in
+    1 )
         install_prepare_password
         install_prepare_port
         install_prepare_cipher
-    elif [ "$selected" = 2 ]; then
+        ;;
+    2 )
         install_prepare_password
         install_prepare_port
         install_prepare_cipher
         install_prepare_protocol
         install_prepare_obfs
-    fi
+        ;;
+    esac
     echo 'Press any key to start...or Press Ctrl+C to cancel'
     char=$(get_char)
 }
 
 config_shadowsocks() {
-    if [ "$selected" = 1 ]; then
+    case $selected in
+    1 )
         local server_value='"0.0.0.0"'
         if get_ipv6; then
             server_value='["[::0]","0.0.0.0"]'
@@ -489,7 +484,7 @@ config_shadowsocks() {
             mkdir -p "$(dirname "$shadowsocks_libev_config")"
         fi
 
-        cat >"$shadowsocks_libev_config" <<-EOF
+        cat >"$shadowsocks_libev_config" <<-EOF ;;
 {
     "server":$server_value,
     "server_port":$shadowsocksport,
@@ -501,11 +496,11 @@ config_shadowsocks() {
 }
 EOF
 
-    elif [ "$selected" = 2 ]; then
+    2 )
         if [ ! -d "$(dirname "$shadowsocks_r_config")" ]; then
             mkdir -p "$(dirname "$shadowsocks_r_config")"
         fi
-        cat >"$shadowsocks_r_config" <<-EOF
+        cat >"$shadowsocks_r_config" <<-EOF ;;
 {
     "server":"0.0.0.0",
     "server_ipv6":"::",
@@ -524,7 +519,8 @@ EOF
     "fast_open":false
 }
 EOF
-    fi
+
+    esac
 }
 
 download() {
@@ -542,7 +538,8 @@ download() {
 download_files() {
     echo
     cd "$cur_dir" || exit
-    if [ "$selected" = 1 ]; then
+    case $selected in
+    1 )
         get_libev_ver
         shadowsocks_libev_file=shadowsocks-libev-$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
         shadowsocks_libev_url=https://github.com/shadowsocks/shadowsocks-libev/releases/download/$libev_ver/$shadowsocks_libev_file.tar.gz
@@ -553,14 +550,16 @@ download_files() {
         elif check_sys packageManager apt; then
             download "$shadowsocks_libev_init" "$shadowsocks_libev_debian"
         fi
-    elif [ "$selected" = 2 ]; then
+        ;;
+    2 )
         download "$shadowsocks_r_file.tar.gz" "$shadowsocks_r_url"
         if check_sys packageManager yum; then
             download "$shadowsocks_r_init" "$shadowsocks_r_centos"
         elif check_sys packageManager apt; then
             download "$shadowsocks_r_init" "$shadowsocks_r_debian"
         fi
-    fi
+        ;;
+    esac
 }
 
 config_firewall() {
@@ -749,17 +748,20 @@ install_main() {
     fi
     ldconfig
 
-    if [ "$selected" = 1 ]; then
+    case $selected in
+    1 )
         install_mbedtls
         ldconfig
         install_shadowsocks_libev
         install_completed_libev
         qr_generate_libev
-    elif [ "$selected" = 2 ]; then
+        ;;
+    2 )
         install_shadowsocks_r
         install_completed_r
         qr_generate_r
-    fi
+        ;;
+    esac
 
     echo
     echo 'Enjoy it!'
@@ -914,19 +916,22 @@ uninstall_shadowsocks() {
     echo "You choose = ${software[$un_select - 1]}"
     echo
 
-    if [ "$un_select" = 1 ]; then
+    case $un_select in
+    1 )
         if [ -f "$shadowsocks_libev_init" ]; then
             uninstall_shadowsocks_libev
         else
             die "${software[$un_select - 1]} not installed, please check it and try again."
         fi
-    elif [ "$un_select" = 2 ]; then
+        ;;
+    2 )
         if [ -f "$shadowsocks_r_init" ]; then
             uninstall_shadowsocks_r
         else
             die "${software[$un_select - 1]} not installed, please check it and try again."
         fi
-    fi
+        ;;
+    esac
     ldconfig
     echo
     warn 'If SELinux was previously disabled by this script, undo manually by:'
