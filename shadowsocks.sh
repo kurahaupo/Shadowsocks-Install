@@ -20,7 +20,24 @@ green=$'\033[0;32m'
 yellow=$'\033[0;33m'
 plain=$'\033[0m'
 
-[[ $EUID -ne 0 ]] && echo "[$red""Error$plain] This script must be run as root!" && exit 1
+die() {
+    error "$@"
+    exit 1
+}
+
+error() {
+    printf '[%s] %s\n' "${red}Error$plain" "$*"
+}
+
+warn() {
+    printf '[%s] %s\n' "${yellow}Warning$plain" "$*"
+}
+
+info() {
+    printf '[%s] %s\n' "${green}Info$plain" "$*"
+}
+
+[[ $EUID != 0 ]] && die 'This script must be run as root!'
 
 cur_dir=$(pwd)
 software=(Shadowsocks-libev ShadowsocksR)
@@ -231,7 +248,7 @@ get_ipv6() {
 
 get_libev_ver() {
     libev_ver=$(wget --no-check-certificate -qO- https://api.github.com/repos/shadowsocks/shadowsocks-libev/releases/latest | grep tag_name | cut -d\" -f4)
-    [ -z "$libev_ver" ] && echo "[$red""Error$plain] Get shadowsocks-libev latest version failed" && exit 1
+    [ -z "$libev_ver" ] && die "Get shadowsocks-libev latest version failed"
 }
 
 install_check() {
@@ -247,9 +264,7 @@ install_check() {
 
 install_select() {
     if ! install_check; then
-        echo "[$red""Error$plain] Your OS is not supported to run it!"
-        echo 'Please change to CentOS 6+/Debian 7+/Ubuntu 12+ and try again.'
-        exit 1
+        die $'Your OS is not supported to run it!\nPlease change to CentOS 6+/Debian 7+/Ubuntu 12+ and try again.'
     fi
 
     clear
@@ -267,13 +282,13 @@ install_select() {
             echo
             echo "You choose = ${software[$selected - 1]}"
             if [ "$selected" = 1 ]; then
-                echo "[$green""Info$plain] Shadowsocks-libev Version: $libev_ver"
+                info "Shadowsocks-libev Version: $libev_ver"
             fi
             echo
             break
             ;;
         *)
-            echo "[$red""Error$plain] Please only enter a number [1-2]"
+            error 'Please only enter a number [1-2]'
             ;;
         esac
     done
@@ -282,23 +297,22 @@ install_select() {
 error_detect_depends() {
     # assume args are: yum -y install DEPEND-NAME-HERE
     local depend=$4
-    echo "[$green""Info$plain] Starting to install package $depend"
+    info "Starting to install package $depend"
     if ! "$@" >/dev/null 2>&1 ; then
-        echo "[$red""Error$plain] Failed to install $red$depend$plain"
-        exit 1
+        die "Failed to install $red$depend$plain"
     fi
 }
 
 install_dependencies() {
     if check_sys packageManager yum; then
-        echo "[$green""Info$plain] Checking the EPEL repository..."
+        info 'Checking the EPEL repository...'
         if [ ! -f /etc/yum.repos.d/epel.repo ]; then
             yum install -y epel-release >/dev/null 2>&1
         fi
-        [ ! -f /etc/yum.repos.d/epel.repo ] && echo "[$red""Error$plain] Install EPEL repository failed, please check it." && exit 1
+        [ ! -f /etc/yum.repos.d/epel.repo ] && die 'Install EPEL repository failed, please check it.'
         [ ! "$(command -v yum-config-manager)" ] && yum install -y yum-utils >/dev/null 2>&1
         [ x"$(yum-config-manager epel | grep -w enabled | awk '{print $3}')" != xTrue ] && yum-config-manager --enable epel >/dev/null 2>&1
-        echo "[$green""Info$plain] Checking the EPEL repository complete..."
+        info 'Checking the EPEL repository complete...'
 
         yum_depends=(
             autoconf automake cpio curl curl-devel gcc git gzip libevent libev-devel libtool make openssl
@@ -345,7 +359,7 @@ install_prepare_port() {
                 break
             fi
         fi
-        echo "[$red""Error$plain] Please enter a correct number [1-65535]"
+        error 'Please enter a correct number [1-65535]'
     done
 }
 
@@ -361,11 +375,11 @@ install_prepare_cipher() {
             read -p "Which cipher you'd select(Default: ${common_ciphers[0]}):" pick
             [ -z "$pick" ] && pick=1
             if ! expr "$pick" + 1 &>/dev/null ; then
-                echo "[$red""Error$plain] Please enter a number"
+                error 'Please enter a number'
                 continue
             fi
             if [[ $pick -lt 1 || $pick -gt ${#common_ciphers[@]} ]]; then
-                echo "[$red""Error$plain] Please enter a number between 1 and ${#common_ciphers[@]}"
+                error "Please enter a number between 1 and ${#common_ciphers[@]}"
                 continue
             fi
             shadowsockscipher=${common_ciphers[$pick - 1]}
@@ -377,11 +391,11 @@ install_prepare_cipher() {
             read -p "Which cipher you'd select(Default: ${r_ciphers[1]}):" pick
             [ -z "$pick" ] && pick=2
             if ! expr "$pick" + 1 &>/dev/null ; then
-                echo "[$red""Error$plain] Please enter a number"
+                error 'Please enter a number'
                 continue
             fi
             if [[ $pick -lt 1 || $pick -gt ${#r_ciphers[@]} ]]; then
-                echo "[$red""Error$plain] Please enter a number between 1 and ${#r_ciphers[@]}"
+                error "Please enter a number between 1 and ${#r_ciphers[@]}"
                 continue
             fi
             shadowsockscipher=${r_ciphers[$pick - 1]}
@@ -404,11 +418,11 @@ install_prepare_protocol() {
         read -p "Which protocol you'd select(Default: ${protocols[0]}):" protocol
         [ -z "$protocol" ] && protocol=1
         if ! expr "$protocol" + 1 &>/dev/null ; then
-            echo "[$red""Error$plain] Please enter a number"
+            error 'Please enter a number'
             continue
         fi
         if [[ $protocol -lt 1 || $protocol -gt ${#protocols[@]} ]]; then
-            echo "[$red""Error$plain] Please enter a number between 1 and ${#protocols[@]}"
+            error "Please enter a number between 1 and ${#protocols[@]}"
             continue
         fi
         shadowsockprotocol=${protocols[$protocol - 1]}
@@ -429,11 +443,11 @@ install_prepare_obfs() {
         read -p "Which obfs you'd select(Default: ${obfs[0]}):" r_obfs
         [ -z "$r_obfs" ] && r_obfs=1
         if ! expr "$r_obfs" + 1 &>/dev/null ; then
-            echo "[$red""Error$plain] Please enter a number"
+            error 'Please enter a number'
             continue
         fi
         if [[ $r_obfs -lt 1 || $r_obfs -gt ${#obfs[@]} ]]; then
-            echo "[$red""Error$plain] Please enter a number between 1 and ${#obfs[@]}"
+            error "Please enter a number between 1 and ${#obfs[@]}"
             continue
         fi
         shadowsockobfs=${obfs[$r_obfs - 1]}
@@ -526,8 +540,7 @@ download() {
     else
         echo "$filename not found, download now..."
         if ! wget --no-check-certificate -c -t3 -T60 -O "$1" "$2" >/dev/null 2>&1 ; then
-            echo "[$red""Error$plain] Download $filename failed."
-            exit 1
+            die "Download $filename failed."
         fi
     fi
 }
@@ -566,10 +579,10 @@ config_firewall() {
                 /etc/init.d/iptables restart
             else
                 echo
-                echo "[$green""Info$plain] port $green$shadowsocksport$plain already be enabled."
+                info "port $green$shadowsocksport$plain already be enabled."
             fi
         else
-            echo "[$yellow""Warning$plain] iptables looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
+            warn "iptables looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
         fi
     elif centosversion 7; then
         if systemctl status firewalld >/dev/null 2>&1 ; then
@@ -578,7 +591,7 @@ config_firewall() {
             firewall-cmd --permanent "--zone=$default_zone" "--add-port=$shadowsocksport/udp"
             firewall-cmd --reload
         else
-            echo "[$yellow""Warning$plain] firewalld looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
+            warn "firewalld looks like not running or not installed, please enable port $shadowsocksport manually if necessary."
         fi
     fi
 }
@@ -586,51 +599,51 @@ config_firewall() {
 install_libsodium() {
     if [ -f /usr/lib/libsodium.a ] || [ -f /usr/lib64/libsodium.a ]; then
         echo
-        echo "[$green""Info$plain] $libsodium_file already installed."
+        info "$libsodium_file already installed."
     else
         echo
-        echo "[$green""Info$plain] $libsodium_file start installing."
+        info "$libsodium_file start installing."
         cd "$cur_dir" || exit
         download "$libsodium_file.tar.gz" "$libsodium_url"
         tar zxf "$libsodium_file.tar.gz"
         cd "$libsodium_file" || exit
         if ! ./configure --prefix=/usr && make && make install ; then
-            echo "[$red""Error$plain] $libsodium_file install failed."
+            error "$libsodium_file install failed."
             install_cleanup
             exit 1
         fi
-        echo "[$green""Info$plain] $libsodium_file install success!"
+        info "$libsodium_file install success!"
     fi
 }
 
 install_mbedtls() {
     if [ -f /usr/lib/libmbedtls.a ] || [ -f /usr/lib64/libmbedtls.a ]; then
         echo
-        echo "[$green""Info$plain] $mbedtls_file already installed."
+        info "$mbedtls_file already installed."
     else
         echo
-        echo "[$green""Info$plain] $mbedtls_file start installing."
+        info "$mbedtls_file start installing."
         cd "$cur_dir" || exit
         download "mbedtls-$mbedtls_file.tar.gz" "$mbedtls_url"
         tar zxf "mbedtls-$mbedtls_file.tar.gz"
         cd "mbedtls-$mbedtls_file"
         make SHARED=1 CFLAGS=-fPIC
         if ! make DESTDIR=/usr install ; then
-            echo "[$red""Error$plain] $mbedtls_file install failed."
+            error "$mbedtls_file install failed."
             install_cleanup
             exit 1
         fi
-        echo "[$green""Info$plain] $mbedtls_file install success!"
+        info "$mbedtls_file install success!"
     fi
 }
 
 install_shadowsocks_libev() {
     if [ -f /usr/local/bin/ss-server ] || [ -f /usr/bin/ss-server ]; then
         echo
-        echo "[$green""Info$plain] ${software[0]} already installed."
+        info "${software[0]} already installed."
     else
         echo
-        echo "[$green""Info$plain] ${software[0]} start installing."
+        info "${software[0]} start installing."
         cd "$cur_dir" || exit
         tar zxf "$shadowsocks_libev_file.tar.gz"
         cd "$shadowsocks_libev_file" || exit
@@ -645,7 +658,7 @@ install_shadowsocks_libev() {
             fi
         else
             echo
-            echo "[$red""Error$plain] ${software[0]} install failed."
+            error "${software[0]} install failed."
             install_cleanup
             exit 1
         fi
@@ -655,10 +668,10 @@ install_shadowsocks_libev() {
 install_shadowsocks_r() {
     if [ -f /usr/local/shadowsocks/server.py ]; then
         echo
-        echo "[$green""Info$plain] ${software[1]} already installed."
+        info "${software[1]} already installed."
     else
         echo
-        echo "[$green""Info$plain] ${software[1]} start installing."
+        info "${software[1]} start installing."
         cd "$cur_dir" || exit
         tar zxf "$shadowsocks_r_file.tar.gz"
         mv "$shadowsocks_r_file/shadowsocks" /usr/local/
@@ -673,7 +686,7 @@ install_shadowsocks_r() {
             fi
         else
             echo
-            echo "[$red""Error$plain] ${software[1]} install failed."
+            error "${software[1]} install failed."
             install_cleanup
             exit 1
         fi
@@ -803,10 +816,10 @@ uninstall_libsodium() {
         rm -rf /usr/include/sodium
         rm -f /usr/include/sodium.h
         ldconfig
-        echo "[$green""Info$plain] $libsodium_file uninstall success"
+        info "$libsodium_file uninstall success"
     else
         echo
-        echo "[$green""Info$plain] $libsodium_file uninstall cancelled, nothing to do..."
+        info "$libsodium_file uninstall cancelled, nothing to do..."
         echo
     fi
 }
@@ -820,10 +833,10 @@ uninstall_mbedtls() {
         rm -f /usr/include/mbedtls/mbedtls_config.h
         rm -f /usr/bin/mbedtls_*
         ldconfig
-        echo "[$green""Info$plain] $mbedtls_file uninstall success"
+        info "$mbedtls_file uninstall success"
     else
         echo
-        echo "[$green""Info$plain] $mbedtls_file uninstall cancelled, nothing to do..."
+        info "$mbedtls_file uninstall cancelled, nothing to do..."
         echo
     fi
 }
@@ -859,10 +872,10 @@ uninstall_shadowsocks_libev() {
         rm -rf /usr/local/share/doc/shadowsocks-libev
         rm -rf "$(dirname "$shadowsocks_libev_config")"
         rm -f "$shadowsocks_libev_init"
-        echo "[$green""Info$plain] ${software[0]} uninstall success"
+        info "${software[0]} uninstall success"
     else
         echo
-        echo "[$green""Info$plain] ${software[0]} uninstall cancelled, nothing to do..."
+        info "${software[0]} uninstall cancelled, nothing to do..."
         echo
         return 1
     fi
@@ -883,10 +896,10 @@ uninstall_shadowsocks_r() {
         rm -f "$shadowsocks_r_init"
         rm -f /var/log/shadowsocks.log
         rm -fr /usr/local/shadowsocks
-        echo "[$green""Info$plain] ${software[1]} uninstall success"
+        info "${software[1]} uninstall success"
     else
         echo
-        echo "[$green""Info$plain] ${software[1]} uninstall cancelled, nothing to do..."
+        info "${software[1]} uninstall cancelled, nothing to do..."
         echo
     fi
 }
@@ -907,7 +920,7 @@ uninstall_shadowsocks() {
             break
             ;;
         *)
-            echo "[$red""Error$plain] Please only enter a number [1-2]"
+            error 'Please only enter a number [1-2]'
             ;;
         esac
     done
@@ -916,22 +929,18 @@ uninstall_shadowsocks() {
         if [ -f "$shadowsocks_libev_init" ]; then
             uninstall_shadowsocks_libev
         else
-            echo "[$red""Error$plain] ${software[$un_select - 1]} not installed, please check it and try again."
-            echo
-            exit 1
+            die "${software[$un_select - 1]} not installed, please check it and try again."
         fi
     elif [ "$un_select" = 2 ]; then
         if [ -f "$shadowsocks_r_init" ]; then
             uninstall_shadowsocks_r
         else
-            echo "[$red""Error$plain] ${software[$un_select - 1]} not installed, please check it and try again."
-            echo
-            exit 1
+            die "${software[$un_select - 1]} not installed, please check it and try again."
         fi
     fi
     ldconfig
     echo
-    echo "${red}WARNING:$yellow if SELinux was previously disabled by this script$plain, undo manually by:"
+    warn 'If SELinux was previously disabled by this script, undo manually by:'
     echo '         edit /etc/selinux/config and change SELINUX= from disabled to enforcing'
     echo '         then run: setenforce 1'
 }
@@ -941,25 +950,21 @@ upgrade_shadowsocks() {
     if ask_yes_no "Upgrade $green${software[0]}$plain" ; then
         if [ -f "$shadowsocks_r_init" ]; then
             echo
-            echo "[$red""Error$plain] Only support shadowsocks-libev !"
-            echo
-            exit 1
+            die 'Only support shadowsocks-libev !'
         elif [ -f "$shadowsocks_libev_init" ]; then
             if [ ! "$(command -v ss-server)" ]; then
                 echo
-                echo "[$red""Error$plain] Shadowsocks-libev not installed..."
-                echo
-                exit 1
+                die 'Shadowsocks-libev not installed...'
             else
                 current_local_version=$(ss-server --help | grep shadowsocks | cut -d' ' -f2)
             fi
             get_libev_ver
             current_libev_ver=$(echo "$libev_ver" | sed -e 's/^[a-zA-Z]//g')
             echo
-            echo "[$green""Info$plain] Shadowsocks-libev Version: v$current_local_version"
+            info "Shadowsocks-libev Version: v$current_local_version"
             if [[ $current_libev_ver = "$current_local_version" ]]; then
                 echo
-                echo "[$green""Info$plain] Already updated to latest version !"
+                info 'Already updated to latest version !'
                 echo
                 exit 1
             fi
@@ -984,13 +989,11 @@ upgrade_shadowsocks() {
             fi
         else
             echo
-            echo "[$red""Error$plain] Shadowsocks-libev server doesn't exist !"
-            echo
-            exit 1
+            die "Shadowsocks-libev server doesn't exist !"
         fi
     else
         echo
-        echo "[$green""Info$plain] ${software[0]} upgrade cancelled, nothing to do..."
+        info "${software[0]} upgrade cancelled, nothing to do..."
         echo
     fi
 }
