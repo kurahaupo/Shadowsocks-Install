@@ -967,7 +967,7 @@ upgrade_shadowsocks() {
                 disable_selinux
                 selected=1
                 echo
-                echo "You will upgrade ${software[seleted-1]}"
+                echo "You will upgrade ${software[selected-1]}"
                 echo
                 shadowsockspwd=$(< /etc/shadowsocks-libev/config.json grep password | cut -d\" -f4)
                 shadowsocksport=$(< /etc/shadowsocks-libev/config.json grep server_port | cut -d , -f1 | cut -d : -f2)
