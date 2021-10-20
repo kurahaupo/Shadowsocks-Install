@@ -318,11 +318,9 @@ install_dependencies() {
         [[ -f /etc/yum.repos.d/epel.repo ]] || die 'Install EPEL repository failed, please check it.'
         has_command yum-config-manager || yum install -y yum-utils >/dev/null 2>&1
 
-        [[ x"$(yum-config-manager epel | grep -w enabled | awk '{print $3}')" != xTrue ]] &&
-        yum-config-manager --enable epel >/dev/null 2>&1
-
         yum-config-manager epel | grep -qx 'enabled = True' ||
         yum-config-manager --enable epel >/dev/null 2>&1
+
         info 'Checking the EPEL repository complete...'
 
         yum_depends=(
