@@ -286,7 +286,7 @@ install_select() {
         for j in "${!software[@]}" ; do
             echo "$green$((j+1))$plain) ${software[j]}"
         done
-        read -p "Please enter a number (Default ${software[0]}):" selected
+        read -p "Please enter a number (Default ${software[0]}):" selected || exit
         ! is_valid_number selected 1 ${#software[@]} 1 ||
         [[ -z ${software[selected-1]} ]]
     do
@@ -345,7 +345,7 @@ install_dependencies() {
 
 install_prepare_password() {
     echo "Please enter password for ${software[selected-1]}"
-    read -p '(Default password: shadowsocks):' shadowsockspwd
+    read -p '(Default password: shadowsocks):' shadowsockspwd || exit
     [[ -z $shadowsockspwd ]] && shadowsockspwd=shadowsocks
     echo
     echo "password = $shadowsockspwd"
@@ -362,7 +362,7 @@ install_prepare_port() {
         printf -v dport %x $dport
 
         echo "Please enter a port for $sw [1-65535]"
-        read -p "(Random port: $dport):" shadowsocksport
+        read -p "(Random port: $dport):" shadowsocksport || exit
         ! is_valid_number shadowsocksport 1 65535 "$dport"
     do
         error 'Please enter a correct number [1-65535]'
@@ -382,7 +382,7 @@ install_prepare_cipher() {
             for j in "${!common_ciphers[@]}" ; do
                 echo "$green$((j+1))$plain) ${common_ciphers[j]}"
             done
-            read -p "Which cipher you'd select(Default: ${common_ciphers[0]}):" pick
+            read -p "Which cipher you'd select(Default: ${common_ciphers[0]}):" pick || exit
             ! is_valid_number pick 1 ${#common_ciphers[@]} 1 ||
             [[ -z ${common_ciphers[pick-1]} ]]
         do
@@ -396,7 +396,7 @@ install_prepare_cipher() {
             for j in "${!r_ciphers[@]}" ; do
                 echo "$green$((j+1))$plain) ${r_ciphers[j]}"
             done
-            read -p "Which cipher you'd select(Default: ${r_ciphers[1]}):" pick
+            read -p "Which cipher you'd select(Default: ${r_ciphers[1]}):" pick || exit
             ! is_valid_number pick 1 ${#r_ciphers[@]} 2 ||
             [[ -z ${r_ciphers[pick-1]} ]]
         do
@@ -417,7 +417,7 @@ install_prepare_protocol() {
         for j in "${!protocols[@]}" ; do
             echo "$green$((j+1))$plain) ${protocols[j]}"
         done
-        read -p "Which protocol you'd select(Default: ${protocols[0]}):" pick
+        read -p "Which protocol you'd select(Default: ${protocols[0]}):" pick || exit
         ! is_valid_number pick 1 ${#protocols[@]} 1 ||
         [[ -z ${protocols[pick-1]} ]]
     do
@@ -437,7 +437,7 @@ install_prepare_obfs() {
         for j in "${!obfs[@]}" ; do
             echo "$green$((j+1))$plain) ${obfs[j]}"
         done
-        read -p "Which obfs you'd select(Default: ${obfs[0]}):" pick
+        read -p "Which obfs you'd select(Default: ${obfs[0]}):" pick || exit
         ! is_valid_number pick 1 ${#obfs[@]} 1 ||
         [[ -z ${obfs[pick-1]} ]]
     do
@@ -792,7 +792,7 @@ install_shadowsocks() {
 ask_yes_no() {
     local answer
     printf "%s? [y/n]\n" "$1"
-    read -p "(default: n):" answer &&
+    read -p "(default: n):" answer || exit
     [[ ${answer^^} = Y ]]
 }
 
@@ -910,7 +910,7 @@ uninstall_shadowsocks() {
         for j in "${!software[@]}" ; do
             echo "$green$((j+1))$plain) ${software[j]}"
         done
-        read -p "Please enter a number [1-${#software[@]}]:" un_select
+        read -p "Please enter a number [1-${#software[@]}]:" un_select || exit
         ! is_valid_number un_select 1 ${#software[@]} ||
         [[ -z ${software[un_select-1]} ]]
     do
