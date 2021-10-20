@@ -355,7 +355,12 @@ install_prepare_password() {
 install_prepare_port() {
     local sw=${software[selected-1]}
     while
-        dport=$(( (RANDOM<<15^RANDOM) % 10000 + 9000 ))
+        # Suggest an "uninteresting" port between 9000 and 19000; no '0' digits
+        # and no double digits.
+        printf -v dport 0x%o $((RANDOM%010000+07000))
+        for((dport+=0x2111,s=256;s;dport/s%256%17<8&&(dport+=s),s>>=4))do :;done
+        printf -v dport %x $dport
+
         echo "Please enter a port for $sw [1-65535]"
         read -p "(Random port: $dport):" shadowsocksport
         ! is_valid_number shadowsocksport 1 65535 "$dport"
