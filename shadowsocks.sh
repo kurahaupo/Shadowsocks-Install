@@ -136,6 +136,22 @@ obfs=(
     tls1.2_ticket_fastauth_compatible
 )
 
+is_valid_number() {
+    local -n val=$1
+    local min=${2:-$val} max=${3:-$val} def=$4
+    case $val in
+    '')
+        [[ $def ]] || return 1
+        val=$def
+        ;;
+    0?* | *[!0-9]* )
+        return 1
+        ;;
+    *)
+        (( min <= val && val <= max ))
+    esac
+}
+
 disable_selinux() {
     if [ -s /etc/selinux/config ] && grep SELINUX=enforcing /etc/selinux/config; then
         sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
@@ -273,29 +289,24 @@ install_select() {
 
     clear
     get_libev_ver
-    while true; do
+    while
         echo "Which Shadowsocks server you'd select:"
-        for ((i = 1; i <= ${#software[@]}; i++)); do
-            hint="${software[$i - 1]}"
-            echo "$green$i$plain) $hint"
+        for j in "${!software[@]}" ; do
+            echo "$green$((j+1))$plain) ${software[j]}"
         done
         read -p "Please enter a number (Default ${software[0]}):" selected
-        [ -z "$selected" ] && selected=1
-        case $selected in
-        1 | 2)
-            echo
-            echo "You choose = ${software[$selected - 1]}"
-            if [ "$selected" = 1 ]; then
-                info "Shadowsocks-libev Version: $libev_ver"
-            fi
-            echo
-            break
-            ;;
-        *)
-            error 'Please only enter a number [1-2]'
-            ;;
-        esac
+        ! is_valid_number selected 1 ${#software[@]} 1 ||
+        [[ -z ${software[$selected - 1]} ]] 
+    do
+        error "Please only enter a number [1-${#software[@]}]"
     done
+    sw=
+    echo
+    echo "You choose = ${software[$selected - 1]}"
+    if [ "$selected" = 1 ]; then
+        info "Shadowsocks-libev Version: $libev_ver"
+    fi
+    echo
 }
 
 error_detect_depends() {
@@ -350,116 +361,95 @@ install_prepare_password() {
 }
 
 install_prepare_port() {
-    while true; do
-        dport=$(shuf -i 9000-19999 -n 1)
-        echo "Please enter a port for ${software[$selected - 1]} [1-65535]"
-        read -p "(Default port: $dport):" shadowsocksport
-        [ -z "$shadowsocksport" ] && shadowsocksport=$dport
-        if expr "$shadowsocksport" + 1 &>/dev/null ; then
-            if [ "$shadowsocksport" -ge 1 ] && [ "$shadowsocksport" -le 65535 ] && [ "${shadowsocksport:0:1}" != 0 ]; then
-                echo
-                echo "port = $shadowsocksport"
-                echo
-                break
-            fi
-        fi
+    local sw=${software[$selected - 1]}
+    while
+        dport=$(( (RANDOM<<15^RANDOM) % 10000 + 9000 ))
+        echo "Please enter a port for $sw [1-65535]"
+        read -p "(Random port: $dport):" shadowsocksport
+        ! is_valid_number shadowsocksport 1 65535 "$dport"
+    do
         error 'Please enter a correct number [1-65535]'
     done
+    echo
+    echo "port = $shadowsocksport"
+    echo
 }
 
 install_prepare_cipher() {
-    while true; do
-        echo "Please select stream cipher for ${software[$selected - 1]}:"
-
-        if [ "$selected" = 1 ]; then
-            for ((i = 1; i <= ${#common_ciphers[@]}; i++)); do
-                hint="${common_ciphers[$i - 1]}"
-                echo "$green$i$plain) $hint"
+    local sw=${software[$selected - 1]}
+    local pick
+    case $selected in
+    1)
+        while
+            echo "Please select stream cipher for $sw:"
+            for j in "${!common_ciphers[@]}" ; do
+                echo "$green$((j+1))$plain) ${common_ciphers[j]}"
             done
             read -p "Which cipher you'd select(Default: ${common_ciphers[0]}):" pick
-            [ -z "$pick" ] && pick=1
-            if ! expr "$pick" + 1 &>/dev/null ; then
-                error 'Please enter a number'
-                continue
-            fi
-            if [[ $pick -lt 1 || $pick -gt ${#common_ciphers[@]} ]]; then
-                error "Please enter a number between 1 and ${#common_ciphers[@]}"
-                continue
-            fi
-            shadowsockscipher=${common_ciphers[$pick - 1]}
-        elif [ "$selected" = 2 ]; then
-            for ((i = 1; i <= ${#r_ciphers[@]}; i++)); do
-                hint="${r_ciphers[$i - 1]}"
-                echo "$green$i$plain) $hint"
+            ! is_valid_number pick 1 ${#common_ciphers[@]} 1 ||
+            [[ -z ${common_ciphers[pick-1]} ]]
+        do
+            error "Please enter a number between 1 and ${#common_ciphers[@]}"
+        done
+        shadowsockscipher=${common_ciphers[pick - 1]}
+        ;;
+    2)
+        while
+            echo "Please select stream cipher for $sw:"
+            for j in "${!r_ciphers[@]}" ; do
+                echo "$green$((j+1))$plain) ${r_ciphers[j]}"
             done
             read -p "Which cipher you'd select(Default: ${r_ciphers[1]}):" pick
-            [ -z "$pick" ] && pick=2
-            if ! expr "$pick" + 1 &>/dev/null ; then
-                error 'Please enter a number'
-                continue
-            fi
-            if [[ $pick -lt 1 || $pick -gt ${#r_ciphers[@]} ]]; then
-                error "Please enter a number between 1 and ${#r_ciphers[@]}"
-                continue
-            fi
-            shadowsockscipher=${r_ciphers[$pick - 1]}
-        fi
-
-        echo
-        echo "cipher = $shadowsockscipher"
-        echo
-        break
-    done
+            ! is_valid_number pick 1 ${#r_ciphers[@]} 2 ||
+            [[ -z ${r_ciphers[pick-1]} ]]
+        do
+            error "Please enter a number between 1 and ${#r_ciphers[@]}"
+        done
+        shadowsockscipher=${r_ciphers[pick - 1]}
+    esac
+    echo
+    echo "cipher = $shadowsockscipher"
+    echo
 }
 
 install_prepare_protocol() {
-    while true; do
-        echo "Please select protocol for ${software[$selected - 1]}:"
-        for ((i = 1; i <= ${#protocols[@]}; i++)); do
-            hint="${protocols[$i - 1]}"
-            echo "$green$i$plain) $hint"
+    local sw=${software[$selected - 1]}
+    local pick
+    while
+        echo "Please select protocol for $sw:"
+        for j in "${!protocols[@]}" ; do
+            echo "$green$((j+1))$plain) ${protocols[j]}"
         done
-        read -p "Which protocol you'd select(Default: ${protocols[0]}):" protocol
-        [ -z "$protocol" ] && protocol=1
-        if ! expr "$protocol" + 1 &>/dev/null ; then
-            error 'Please enter a number'
-            continue
-        fi
-        if [[ $protocol -lt 1 || $protocol -gt ${#protocols[@]} ]]; then
-            error "Please enter a number between 1 and ${#protocols[@]}"
-            continue
-        fi
-        shadowsockprotocol=${protocols[$protocol - 1]}
-        echo
-        echo "protocol = $shadowsockprotocol"
-        echo
-        break
+        read -p "Which protocol you'd select(Default: ${protocols[0]}):" pick
+        ! is_valid_number pick 1 ${#protocols[@]} 1 ||
+        [[ -z ${protocols[pick-1]} ]]
+    do
+        error "Please enter a number between 1 and ${#protocols[@]}"
     done
+    shadowsockprotocol=${protocols[pick - 1]}
+    echo
+    echo "protocol = $shadowsockprotocol"
+    echo
 }
 
 install_prepare_obfs() {
-    while true; do
-        echo "Please select obfs for ${software[$selected - 1]}:"
-        for ((i = 1; i <= ${#obfs[@]}; i++)); do
-            hint="${obfs[$i - 1]}"
-            echo "$green$i$plain) $hint"
+    local sw=${software[$selected - 1]}
+    local pick
+    while
+        echo "Please select obfs for $sw:"
+        for j in "${!obfs[@]}" ; do
+            echo "$green$((j+1))$plain) ${obfs[j]}"
         done
-        read -p "Which obfs you'd select(Default: ${obfs[0]}):" r_obfs
-        [ -z "$r_obfs" ] && r_obfs=1
-        if ! expr "$r_obfs" + 1 &>/dev/null ; then
-            error 'Please enter a number'
-            continue
-        fi
-        if [[ $r_obfs -lt 1 || $r_obfs -gt ${#obfs[@]} ]]; then
-            error "Please enter a number between 1 and ${#obfs[@]}"
-            continue
-        fi
-        shadowsockobfs=${obfs[$r_obfs - 1]}
-        echo
-        echo "obfs = $shadowsockobfs"
-        echo
-        break
+        read -p "Which obfs you'd select(Default: ${obfs[0]}):" pick
+        ! is_valid_number pick 1 ${#obfs[@]} 1 ||
+        [[ -z ${obfs[pick-1]} ]]
+    do
+        error "Please enter a number between 1 and ${#obfs[@]}"
     done
+    shadowsockobfs=${obfs[pick - 1]}
+    echo
+    echo "obfs = $shadowsockobfs"
+    echo
 }
 
 get_char() {
@@ -909,25 +899,20 @@ uninstall_shadowsocks_r() {
 }
 
 uninstall_shadowsocks() {
-    while true; do
+    while
         echo 'Which Shadowsocks server you want to uninstall?'
-        for ((i = 1; i <= ${#software[@]}; i++)); do
-            hint="${software[$i - 1]}"
-            echo "$green$i$plain) $hint"
+        for j in "${!software[@]}" ; do
+            echo "$green$((j+1))$plain) ${software[j]}"
         done
-        read -p 'Please enter a number [1-2]:' un_select
-        case $un_select in
-        1 | 2)
-            echo
-            echo "You choose = ${software[$un_select - 1]}"
-            echo
-            break
-            ;;
-        *)
-            error 'Please only enter a number [1-2]'
-            ;;
-        esac
+        read -p "Please enter a number [1-${#software[@]}]:" un_select
+        ! is_valid_number un_select 1 ${#software[@]} ||
+        [[ -z ${software[un_select-1]} ]]
+    do
+        error "Please only enter a number [1-${#software[@]}]"
     done
+    echo
+    echo "You choose = ${software[$un_select - 1]}"
+    echo
 
     if [ "$un_select" = 1 ]; then
         if [ -f "$shadowsocks_libev_init" ]; then
