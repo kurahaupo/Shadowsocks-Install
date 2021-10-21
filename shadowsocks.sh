@@ -246,11 +246,60 @@ debianversion() {
     [[ $main_ver = "$code" ]]
 }
 
+ip_can_json() {
+    local V=$( ip -V )
+    V=${V#*iproute2-}
+    V=${V#v}
+    case $V in
+      ss*)  [[ $V > ss170904 ]] ;;
+      *.*)  IFS=. read -ra V <<<"$V" && (( V[0] > 4 || V[0] == 4 && V[1] >= 13 )) ;;
+      *)    ! : ;;
+    esac
+}
+
+IP=
 get_ip() {
-    local IP=$(ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1)
-    [[ -z $IP ]] && IP=$(wget -qO- -t1 -T2 ipv4.icanhazip.com)
-    [[ -z $IP ]] && IP=$(wget -qO- -t1 -T2 ipinfo.io/ip)
-    echo "$IP"
+    # Get addresses bound to interfaces, excluding host-local, link-local and
+    # multicast addresses. Return the first available address.
+    # Unfortunately "ifup" doesn't know that RFC1918 addresses are link-local,
+    # so it leaves them to default to "global", so filtered is still required.
+
+    [[ -n $IP ]] && return
+
+    # Parse the JSON output directly if we have:
+    # * the "jq" command installed, and
+    # * version v4.13.0 or later of "ip" (equivalently, snapshot ss170905 or later)
+    has_command jq && ip_can_json && IP=$(
+        ip -j -4 addr list |
+        jq -r '.[] .addr_info [] |
+               select(.scope=="global") |
+               .local'
+    ) 2>/dev/null
+    [[ -n $IP ]] && return
+
+    # Alternatively, parse the "oneline" format looking for the 'inet' keyword.
+    IP=$(
+        ip -o -4 addr list scope global |
+        sed '
+            s#.* inet \([0-9.]*\)[/0-9]* .*#\1# ; ta; d; :a
+            /^10\./d
+            /^172.1[6-9]\./d ; /^172.2[0-9]\./d ; /^172.3[0-1]\./d
+            /^192\.168\./d
+            /^22[4-9]\./d ; /^2[3-5][0-9]\./d
+            q
+        '
+    ) 2>/dev/null
+    [[ -n $IP ]] && return
+
+    IP=$(
+        wget -qO- -t1 -T2 ipv4.icanhazip.com
+    ) 2>/dev/null
+    [[ -n $IP ]] && return
+
+    IP=$(
+        wget -qO- -t1 -T2 ipinfo.io/ip
+    ) 2>/dev/null
+    [[ -n $IP ]] && return
 }
 
 get_ipv6() {
@@ -688,11 +737,12 @@ install_shadowsocks_r() {
 
 install_completed_libev() {
     clear
+    get_ip
     ldconfig
     "$shadowsocks_libev_init" start
     echo
     echo "Congratulations, $green${software[0]}$plain server install completed!"
-    info_kv 'Your Server IP'         "$(get_ip)"
+    info_kv 'Your Server IP'         "$IP"
     info_kv 'Your Server Port'       "$shadowsocksport"
     info_kv 'Your Password'          "$shadowsockspwd"
     info_kv 'Your Encryption Method' "$shadowsockscipher"
@@ -700,10 +750,11 @@ install_completed_libev() {
 
 install_completed_r() {
     clear
+    get_ip
     "$shadowsocks_r_init" start
     echo
     echo "Congratulations, $green${software[1]}$plain server install completed!"
-    info_kv 'Your Server IP'         "$(get_ip)"
+    info_kv 'Your Server IP'         "$IP"
     info_kv 'Your Server Port'       "$shadowsocksport"
     info_kv 'Your Password'          "$shadowsockspwd"
     info_kv 'Your Protocol'          "$shadowsockprotocol"
@@ -713,7 +764,8 @@ install_completed_r() {
 
 qr_generate_libev() {
     if has_command qrencode ; then
-        local tmp=$(echo -n "$shadowsockscipher:$shadowsockspwd@$(get_ip):$shadowsocksport" | base64 -w0)
+        get_ip
+        local tmp=$(echo -n "$shadowsockscipher:$shadowsockspwd@$IP:$shadowsocksport" | base64 -w0)
         local qr_code=ss://$tmp
         echo
         echo 'Your QR Code: (For Shadowsocks Windows, OSX, Android and iOS clients)'
@@ -726,8 +778,9 @@ qr_generate_libev() {
 
 qr_generate_r() {
     if has_command qrencode ; then
+        get_ip
         local tmp1=$(echo -n "$shadowsockspwd" | base64 -w0 | sed 's/=//g;s/\//_/g;s/+/-/g')
-        local tmp2=$(echo -n "$(get_ip):$shadowsocksport:$shadowsockprotocol:$shadowsockscipher:$shadowsockobfs:$tmp1/?obfsparam=" | base64 -w0)
+        local tmp2=$(echo -n "$IP:$shadowsocksport:$shadowsockprotocol:$shadowsockscipher:$shadowsockobfs:$tmp1/?obfsparam=" | base64 -w0)
         local qr_code=ssr://$tmp2
         echo
         echo 'Your QR Code: (For ShadowsocksR Windows, Android clients only)'
